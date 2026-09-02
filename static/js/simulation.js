@@ -569,30 +569,31 @@ function updateSimulationLoop(dt) {
     }
 
     // 360° EMERGENCY BRAKE — triggers in any drive mode (manual OR autopilot)
-    // Engage AEB if ANY entity is within safety envelope from any direction
-    const aebFront   = fDist      < 10.0;
-    const aebRear    = rearDist   < 7.0;
-    const aebLeft    = lDist      < 3.5;
-    const aebRight   = rDist      < 3.5;
+    // Engage AEB only if an entity is dangerously close (< 6.0m front, < 3.0m rear/sides)
+    const aebFront   = fDist      < 6.0;
+    const aebRear    = rearDist   < 3.0;
+    const aebLeft    = lDist      < 1.8;
+    const aebRight   = rDist      < 1.8;
     const aebAny     = aebFront || aebRear || aebLeft || aebRight;
 
     if (aebAny && closestAnyDir && !isPhysicalImpact) {
         // Hard-brake from any direction
-        ego.speedMph = Math.max(0, ego.speedMph - 95.0 * dt);
+        ego.speedMph = Math.max(0, ego.speedMph - 90.0 * dt);
         ego.speedMps = (ego.speedMph * 1.609) / 3.6;
         ego.aebActive = true;
 
-        const dir    = closestAnyDir_label;
         const dist   = closestAnyDist.toFixed(1);
         const typ    = closestAnyDir.type;
         const typIcon = typ === 'pedestrian' ? '🚶' : typ === 'cyclist' ? '🚴' : typ === 'motorcycle' ? '🏍️' : typ === 'truck' ? '🚛' : '🚗';
-        const ttcVal  = ego.speedMps > 0.1 ? (closestAnyDist / ego.speedMps).toFixed(1) : '∞';
         const dirWarn = aebFront ? '⬆ Front' : aebRear ? '⬇ Rear' : aebLeft ? '◀ Left' : '▶ Right';
 
         AVState.setGuidance(buildGuidance(
             `🚨 CRITICAL BRAKE: ${typIcon} ${typ.toUpperCase()} AT ${dist}m [${dirWarn}]`,
-    // 2. Realistic Safety & Cruising Logic (No Phantom Braking)
-    if (ego.isAutoPilot) {
+            `AEB engaged. 360° radar detected ${typ} in ${dirWarn} zone at ${dist}m. Safety net active.`,
+            'CRITICAL',
+            0.98
+        ));
+    } else if (ego.isAutoPilot) {
         if (closestObs && fDist < 8.0) {
             // Imminent Danger (< 8m) — Execute 360° AEB Hard Stop
             ego.aebActive = true;
@@ -662,12 +663,12 @@ function updateSimulationLoop(dt) {
     } else {
         // Manual mode, no immediate threat — provide advisory
         const nearestLabel = closestAnyDir
-            ? `${closestAnyDir.type} ${closestAnyDist.toFixed(0)}m ${closestAnyDir_label.toLowerCase()}`
+            ? `${closestAnyDir.type.toUpperCase()} (${closestAnyDist.toFixed(0)}m)`
             : 'no hazards detected';
         const riskLvl = closestAnyDist < 25 ? 'HIGH' : closestAnyDist < 60 ? 'MEDIUM' : 'LOW';
         AVState.setGuidance(buildGuidance(
-            `🔵 MANUAL MODE · ${riskLvl === 'LOW' ? 'ALL CLEAR' : `WATCH: ${nearestLabel.toUpperCase()}`}`,
-            `Manual override active. Nearest entity: ${nearestLabel}. 360° radar monitoring all lanes. AEB remains active from all directions as safety net.`,
+            `🔵 MANUAL MODE · ${riskLvl === 'LOW' ? 'ALL CLEAR' : `WATCH: ${nearestLabel}`}`,
+            `Manual override active. Nearest entity: ${nearestLabel}. 360° radar monitoring all lanes. AEB safety net active.`,
             riskLvl,
             0.94
         ));

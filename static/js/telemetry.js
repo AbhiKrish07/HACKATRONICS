@@ -11,7 +11,7 @@ class TelemetryReceiver {
 
     connect() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}/ws/telemetry`;
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
 
         this.ws = new WebSocket(wsUrl);
 

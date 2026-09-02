@@ -527,6 +527,7 @@ async def post_driver_intervention(req: InterventionRequest) -> Dict[str, Any]:
     return {"ok": True, "profile": profile}
 
 @app.websocket("/ws")
+@app.websocket("/ws/telemetry")
 async def websocket_stream(websocket: WebSocket):
     await websocket.accept()
     logger.info("Client connected to live WebSocket stream")
