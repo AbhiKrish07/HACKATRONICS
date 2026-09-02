@@ -52,8 +52,11 @@ class StateManager {
         };
 
         this.tripSummary = {
-            timerSec: 0, distanceKm: 0.0,
-            hazardsTracked: 0, alertsTriggered: 0, avgConfidence: 94
+            activeTimeSec: 0,
+            hazardsDetected: 0, 
+            aebInterventions: 0, 
+            laneDeviations: 0,
+            tripStartTime: performance.now()
         };
 
         // Performance telemetry
@@ -136,7 +139,26 @@ class StateManager {
                 source: 'Sim Logic',
                 guidance: this.latestGuidance
             });
+            
+            // Trip Metrics Auto-Logging based on Guidance Actions
+            if (this.latestGuidance.action.includes('AEB')) {
+                this.incrementTripMetric('aebInterventions');
+            } else if (this.latestGuidance.action.includes('Swerving')) {
+                this.incrementTripMetric('laneDeviations');
+            }
         }
+    }
+
+    incrementTripMetric(key) {
+        if (this.tripSummary[key] !== undefined) {
+            this.tripSummary[key]++;
+            this.notify();
+        }
+    }
+
+    updateTripTime() {
+        this.tripSummary.activeTimeSec = Math.floor((performance.now() - this.tripSummary.tripStartTime) / 1000);
+        this.notify();
     }
 
     /**

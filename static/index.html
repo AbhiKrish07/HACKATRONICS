@@ -383,6 +383,7 @@
                             <button onclick="spawnTrafficElement('motorcycle_swarm')" style="background:rgba(8,10,18,0.88); border:1px solid rgba(0,200,255,0.3); color:#00ccff; font-size:0.6rem; font-weight:700; padding:4px 8px; border-radius:5px; cursor:pointer; font-family:var(--font-mono); letter-spacing:0.05em; backdrop-filter:blur(6px); transition:all 0.15s;" title="Motorcycle Swarm">🏍️ BIKES</button>
                             <button onclick="spawnTrafficElement('dense_indian')" style="background:rgba(8,10,18,0.88); border:1px solid rgba(255,150,0,0.4); color:#ff9500; font-size:0.6rem; font-weight:700; padding:4px 8px; border-radius:5px; cursor:pointer; font-family:var(--font-mono); letter-spacing:0.05em; backdrop-filter:blur(6px); transition:all 0.15s;" title="Dense Indian Traffic">🇮🇳 TRAFFIC</button>
                             <button onclick="spawnTrafficElement('green_signal')" style="background:rgba(8,10,18,0.88); border:1px solid rgba(0,200,100,0.35); color:#00cc66; font-size:0.6rem; font-weight:700; padding:4px 8px; border-radius:5px; cursor:pointer; font-family:var(--font-mono); letter-spacing:0.05em; backdrop-filter:blur(6px); transition:all 0.15s;" title="Cycle Signal State">🟡 CYCLE</button>
+                            <button onclick="spawnTrafficElement('sensor_fail')" style="background:rgba(8,10,18,0.88); border:1px solid rgba(156,39,176,0.5); color:#c026d3; font-size:0.6rem; font-weight:700; padding:4px 8px; border-radius:5px; cursor:pointer; font-family:var(--font-mono); letter-spacing:0.05em; backdrop-filter:blur(6px); transition:all 0.15s;" title="Trigger Sensor Conflict Edge Case">🌪️ SENSOR FAIL</button>
                             <button onclick="spawnTrafficElement('clear_traffic')" style="background:rgba(8,10,18,0.88); border:1px solid rgba(255,255,255,0.15); color:rgba(255,255,255,0.4); font-size:0.6rem; font-weight:700; padding:4px 8px; border-radius:5px; cursor:pointer; font-family:var(--font-mono); letter-spacing:0.05em; backdrop-filter:blur(6px); transition:all 0.15s;" title="Clear All">🧹 CLEAR</button>
                         </div>
                     </div>
@@ -683,6 +684,29 @@
                             </tr>
                         </tbody>
                     </table>
+                </div>
+                
+                <!-- Trip Metrics Summary -->
+                <div class="card-auto" style="margin-top:20px;">
+                    <div class="card-auto-title"><span>⏱️ TRIP METRICS (LIVE)</span></div>
+                    <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:15px; padding-top:10px;">
+                        <div style="background:#0a0c11; border:1px solid var(--border-subtle); border-radius:6px; padding:12px; text-align:center;">
+                            <div style="font-size:0.65rem; color:var(--text-subtle); margin-bottom:5px; font-family:var(--font-mono);">ACTIVE TIME</div>
+                            <div id="metric-time" style="font-size:1.4rem; font-weight:700; color:#fff;">00:00</div>
+                        </div>
+                        <div style="background:#0a0c11; border:1px solid var(--border-subtle); border-radius:6px; padding:12px; text-align:center;">
+                            <div style="font-size:0.65rem; color:var(--text-subtle); margin-bottom:5px; font-family:var(--font-mono);">HAZARDS DETECTED</div>
+                            <div id="metric-hazards" style="font-size:1.4rem; font-weight:700; color:var(--safety-amber);">0</div>
+                        </div>
+                        <div style="background:#0a0c11; border:1px solid var(--border-subtle); border-radius:6px; padding:12px; text-align:center;">
+                            <div style="font-size:0.65rem; color:var(--text-subtle); margin-bottom:5px; font-family:var(--font-mono);">AEB INTERVENTIONS</div>
+                            <div id="metric-aeb" style="font-size:1.4rem; font-weight:700; color:var(--safety-red);">0</div>
+                        </div>
+                        <div style="background:#0a0c11; border:1px solid var(--border-subtle); border-radius:6px; padding:12px; text-align:center;">
+                            <div style="font-size:0.65rem; color:var(--text-subtle); margin-bottom:5px; font-family:var(--font-mono);">LANE DEVIATIONS</div>
+                            <div id="metric-deviations" style="font-size:1.4rem; font-weight:700; color:#00d66f;">0</div>
+                        </div>
+                    </div>
                 </div>
             </section>
 

@@ -110,6 +110,22 @@ class TelemetryReceiver {
         // System status dot
         this._setStatusDot(AVState.systemStatus);
 
+        // Trip Metrics
+        if (AVState.tripSummary) {
+            const tm = AVState.tripSummary;
+            const mins = Math.floor(tm.activeTimeSec / 60).toString().padStart(2, '0');
+            const secs = (tm.activeTimeSec % 60).toString().padStart(2, '0');
+            const timeEl = document.getElementById('metric-time');
+            const hazEl = document.getElementById('metric-hazards');
+            const aebEl = document.getElementById('metric-aeb');
+            const devEl = document.getElementById('metric-deviations');
+            
+            if (timeEl) timeEl.innerText = `${mins}:${secs}`;
+            if (hazEl) hazEl.innerText = tm.hazardsDetected;
+            if (aebEl) aebEl.innerText = tm.aebInterventions;
+            if (devEl) devEl.innerText = tm.laneDeviations;
+        }
+
         // Autopilot wheel icon color
         const wheelIcon = document.getElementById('tesla-wheel-icon');
         if (wheelIcon) {
