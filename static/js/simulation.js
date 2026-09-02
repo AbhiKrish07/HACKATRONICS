@@ -591,11 +591,13 @@ function updateSimulationLoop(dt) {
             ego.speedMph = Math.max(0.0, ego.speedMph * 0.25 - 8.0);
             ego.speedMps = (ego.speedMph * 1.609) / 3.6;
 
-            // 2. Physical impact yaw shudder
-            ego.yaw += (rx > 0 ? -0.15 : 0.15);
+            // 2. Physical impact pushback (prevent sticking and infinite spinning)
+            e.worldZ += distZ > 0 ? 0.5 : -0.5;
+            ego.x -= (rx > 0 ? 0.2 : -0.2);
 
-            // 3. Reactive push impulse to obstacle so no visual phase clipping!
-            e.worldZ += distZ > 0 ? 1.5 : -1.5;
+            // 3. Cap yaw destabilization so it doesn't do 360 spins
+            const targetYaw = rx > 0 ? -0.4 : 0.4;
+            ego.yaw = ego.yaw * 0.85 + targetYaw * 0.15; // smooth capped deflection
 
             // 4. Alert HUD
             AVState.setGuidance({
