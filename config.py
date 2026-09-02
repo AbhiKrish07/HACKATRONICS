@@ -54,7 +54,7 @@ class Settings(BaseSettings):
     WEIGHT_SEVERITY: float = 0.15
 
     # Critical thresholds for collision avoidance
-    CRITICAL_DISTANCE_METERS: float = 8.0
+    CRITICAL_DISTANCE_METERS: float = 15.0
     WARNING_DISTANCE_METERS: float = 40.0
     SAFE_DISTANCE_METERS: float = 80.0
 
