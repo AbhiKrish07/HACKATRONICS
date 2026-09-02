@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AUTONAV AV-01 — Uncluttered Autonomous Navigation System</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <title>AV-01 — Intelligent Navigation & Decision-Support System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
@@ -12,551 +12,394 @@
 </head>
 <body>
     <div class="app-shell">
-        <main class="main-col">
-
-
-            <!-- Global Control Bar -->
-            <div class="control-bar">
-                <div class="control-group">
-                    <span class="control-lbl">Drive Mode:</span>
-                    <button class="btn active" id="btn-pilot-mode" onclick="setDriveMode(true)">🤖 MPC AUTO-PILOT</button>
-                    <button class="btn" id="btn-manual-mode" onclick="setDriveMode(false)">🎮 Manual Drive (WASD)</button>
-                </div>
-
-                <div class="control-group">
-                    <span class="control-lbl">Traffic Signals & Open World:</span>
-                    <button class="btn" onclick="sendTrafficSignal('GREEN')">🟢 Force Green</button>
-                    <button class="btn" onclick="sendTrafficSignal('YELLOW')">🟡 Force Yellow</button>
-                    <button class="btn" onclick="sendTrafficSignal('RED')">🔴 Force Red</button>
-                    <button class="btn" onclick="triggerManeuver('EXIT')">🚪 Take Exit</button>
-                    <button class="btn" onclick="triggerManeuver('LEFT')">👈 Turn Left</button>
-                    <button class="btn" onclick="triggerManeuver('RIGHT')">👉 Turn Right</button>
-                </div>
-
-                <div class="control-group">
-                    <span class="control-lbl">Datasets & Simulation Streams:</span>
-                    <button class="btn" id="btn-waymo-feed" onclick="startWaymoFeed()" style="border-color:var(--tesla-cyan); color:var(--tesla-cyan);">🚗 Waymo Feed</button>
-                    <button class="btn" id="btn-kaggle-feed" onclick="startKaggleFeed()">📊 Kaggle Feed</button>
-                    <button class="btn" onclick="startSyntheticFeed()">⚡ Synthetic Feed</button>
-                    <button class="btn" onclick="triggerRandomScenario()" style="border-color:var(--tesla-yellow); color:var(--tesla-yellow);">🎲 Random Edge Scenario</button>
-                </div>
-
-                <div class="control-group">
-                    <span class="control-lbl">Presentation & Safety:</span>
-                    <button class="btn" id="btn-auto-demo" onclick="toggleAutoDemo()" style="background:linear-gradient(135deg, rgba(54,147,255,0.2) 0%, rgba(0,214,111,0.2) 100%); border-color:var(--tesla-blue); color:#fff; font-weight:800;">▶️ AUTO-DEMO</button>
-                    <button class="btn btn-danger" onclick="triggerAEB()">🚨 AEB Test</button>
-                    <button class="btn" onclick="resetSimulator()">🔄 Reset Trip</button>
+        <!-- 1. Minimal Automotive Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-logo-mark">AV</div>
+                <div>
+                    <div class="brand-text-title">AUTONAV</div>
+                    <div class="brand-text-sub">AV-01 System</div>
                 </div>
             </div>
 
-            <!-- === 01 DASHBOARD VIEW === -->
+            <nav class="nav-list">
+                <a href="#dashboard" class="nav-item active" data-view="dashboard">
+                    <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+                    <span>01 Dashboard</span>
+                </a>
+                <a href="#livedrive" class="nav-item" data-view="livedrive">
+                    <svg viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.85 7h10.29l1.04 3H5.81l1.04-3zM19 17H5v-4h14v4z"/></svg>
+                    <span>02 Live Drive</span>
+                </a>
+                <a href="#cameras" class="nav-item" data-view="cameras">
+                    <svg viewBox="0 0 24 24"><path d="M9.4 10.5l4.77-2.76 4.77 2.76V16l-4.77 2.76-4.77-2.76zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/></svg>
+                    <span>03 Cameras</span>
+                </a>
+                <a href="#map" class="nav-item" data-view="map">
+                    <svg viewBox="0 0 24 24"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
+                    <span>04 Map</span>
+                </a>
+                <a href="#decisions" class="nav-item" data-view="decisions">
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                    <span>05 Decisions</span>
+                </a>
+                <a href="#analytics" class="nav-item" data-view="analytics">
+                    <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+                    <span>06 Analytics</span>
+                </a>
+                <a href="#logs" class="nav-item" data-view="logs">
+                    <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+                    <span>07 Logs</span>
+                </a>
+                <a href="#scenarios" class="nav-item" data-view="scenarios">
+                    <svg viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>
+                    <span>08 Scenarios</span>
+                </a>
+                <a href="#system" class="nav-item" data-view="system">
+                    <svg viewBox="0 0 24 24"><path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5-3.5 3.5z"/></svg>
+                    <span>09 System</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div>AV-01 Engine v2.4</div>
+                <div style="margin-top:2px;">Waymo · Kaggle · CARLA</div>
+            </div>
+        </aside>
+
+        <!-- 2. Main Automotive Column -->
+        <main class="main-col">
+            <!-- Minimal Status Header -->
+            <header class="top-header">
+                <div class="header-title">
+                    <span>AV-01</span>
+                    <span style="color:var(--text-subtle);">|</span>
+                    <span style="font-weight:400; font-size:0.78rem;">INTELLIGENT NAVIGATION & DECISION-SUPPORT</span>
+                    <span class="header-badge" id="source-badge">SOURCE: SIMULATOR</span>
+                </div>
+                <div class="header-right">
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span class="status-dot" id="system-status-dot"></span>
+                        <span id="system-status-text">NOMINAL</span>
+                    </div>
+                    <span id="header-clock">10:24:30 AM</span>
+                    <button class="btn-cockpit" onclick="openAboutModal()" style="padding:3px 8px; font-size:0.65rem;">ⓘ Objective</button>
+                </div>
+            </header>
+
+            <!-- Cockpit Control Bar -->
+            <div class="cockpit-control-bar">
+                <div class="control-group">
+                    <span class="control-label">Drive:</span>
+                    <button class="btn-cockpit active" id="btn-pilot-mode" onclick="setDriveMode(true)">🤖 MPC Autopilot</button>
+                    <button class="btn-cockpit" id="btn-manual-mode" onclick="setDriveMode(false)">🎮 Manual (WASD)</button>
+                </div>
+                <div class="control-group">
+                    <span class="control-label">Source:</span>
+                    <button class="btn-cockpit" id="btn-synthetic-feed" onclick="startSyntheticFeed()">Synthetic</button>
+                    <button class="btn-cockpit" id="btn-kaggle-feed" onclick="startKaggleFeed()">Kaggle</button>
+                    <button class="btn-cockpit" id="btn-waymo-feed" onclick="startWaymoFeed()">Waymo</button>
+                </div>
+                <div class="control-group">
+                    <span class="control-label">Edge Cases:</span>
+                    <button class="btn-cockpit" onclick="triggerEdgeCase('gap')">⚡ Sensor Gap</button>
+                    <button class="btn-cockpit" onclick="triggerEdgeCase('conflict')">⚠️ Conflict</button>
+                    <button class="btn-cockpit btn-cockpit-danger" onclick="triggerAEB()">🚨 AEB Hard Stop</button>
+                </div>
+            </div>
+
+            <!-- ============================================================
+                 01 DASHBOARD VIEW (CENTERPIECE 3D COCKPIT)
+                 ============================================================ -->
             <section id="dashboard" class="view-pane active" data-pane="dashboard">
-                <div class="dash-grid-top">
-                    <!-- Live Simulation 3D Gamified Engine -->
-                    <div class="card" style="padding:0; position:relative; overflow:hidden; min-height: 520px; display: flex; flex-direction: column; grid-column: span 2;">
-                        <div class="card-title" style="padding:12px 18px; background:rgba(17,22,31,0.95); position:absolute; top:0; left:0; right:0; z-index:10; border-bottom:1px solid var(--border-soft);">
-                            <span style="font-weight:800; letter-spacing:0.5px;">🏎️ AUTONAV AV-01 · 3D GAMIFIED CARLA DRIVING ENGINE</span>
-                            <div style="display:flex; align-items:center; gap:10px;">
-                                <span class="badge" style="background:rgba(0,214,111,0.15); color:var(--tesla-green); border:1px solid rgba(0,214,111,0.3);" id="gear-indicator-pill">⚙️ DRIVE (D) · 80 KM/H</span>
-                                <span class="badge" style="background:rgba(54,147,255,0.15); color:var(--tesla-blue); border:1px solid rgba(54,147,255,0.3);" id="carla-mode-badge">🤖 AUTOPILOT STEER</span>
-                                <span id="frame-counter-sim" style="font-family:'JetBrains Mono'; color:var(--tesla-cyan);">Frame #0</span>
-                            </div>
+                <div class="viewport-3d-container">
+                    <!-- Three.js 3D Driving Scene Container -->
+                    <div id="viewport-box-sim"></div>
+
+                    <!-- 360° Spatial Sensor Arc Overlay -->
+                    <div class="sensor-spatial-overlay">
+                        <div class="spatial-ego-car"></div>
+                        <div class="sensor-arc-zone zone-front zone-active-nominal" id="zone-front">FRONT 250m</div>
+                        <div class="sensor-arc-zone zone-rear zone-active-nominal" id="zone-rear">REAR 100m</div>
+                        <div class="sensor-arc-zone zone-left zone-active-nominal" id="zone-left">LEFT 40m</div>
+                        <div class="sensor-arc-zone zone-right zone-active-nominal" id="zone-right">RIGHT 40m</div>
+                    </div>
+
+                    <!-- Floating Speedometer HUD -->
+                    <div class="hud-speedometer">
+                        <div style="display:flex; align-items:baseline; gap:8px;">
+                            <span class="speed-val-huge" id="hud-speed-val">52</span>
+                            <span class="speed-unit-sub">KM/H</span>
                         </div>
-
-                        <!-- 3D Canvas Container -->
-                        <div class="viewport-box camera-view-mode" id="viewport-box-sim" style="flex:1; width:100%; min-height:480px;">
-                            <div class="blind-spot-overlay">
-                                <div class="bs-left"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;"><span class="bs-icon">⚠️</span><span class="bs-text">LEFT BLIND ZONE</span></div></div>
-                                <div class="bs-right"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;"><span class="bs-icon">⚠️</span><span class="bs-text">RIGHT BLIND ZONE</span></div></div>
-                                <div class="bs-rear"><div style="display:flex;flex-direction:column;align-items:center;gap:4px;"><span style="font-size:0.9rem;">⚠️</span><span class="bs-text">REAR SCANNER</span></div></div>
-                            </div>
-
-                            <!-- Tesla Style P-R-N-D Bar Overlay -->
-                            <div style="position:absolute; top:54px; left:20px; z-index:12; display:flex; align-items:center; gap:10px; background:rgba(10,14,24,0.85); padding:6px 14px; border-radius:20px; border:1px solid rgba(255,255,255,0.1); backdrop-filter:blur(10px);">
-                                <span style="font-weight:800; font-size:0.8rem; color:var(--text-muted);">GEAR:</span>
-                                <span style="font-weight:900; font-size:0.9rem; color:var(--text-muted);">P</span>
-                                <span style="font-weight:900; font-size:0.9rem; color:var(--text-muted);">R</span>
-                                <span style="font-weight:900; font-size:0.9rem; color:var(--text-muted);">N</span>
-                                <span style="font-weight:900; font-size:0.9rem; color:var(--tesla-green); text-shadow: 0 0 10px rgba(0,214,111,0.6);">D</span>
-                                <span style="width:1px; height:14px; background:rgba(255,255,255,0.15); margin:0 4px;"></span>
-                                <span style="font-size:0.75rem; color:var(--tesla-cyan); font-weight:700;">🟢 AUTO-OVERTAKE ENABLED</span>
-                            </div>
-
-                            <!-- Speed Limit Sign Overlay -->
-                            <div style="position:absolute; top:54px; right:20px; z-index:12; width:44px; height:44px; border-radius:50%; background:#fff; border:4px solid #e82127; display:flex; flex-direction:column; align-items:center; justify-content:center; box-shadow:0 4px 14px rgba(0,0,0,0.5);">
-                                <span style="font-size:0.5rem; font-weight:800; color:#111; line-height:1;">LIMIT</span>
-                                <span style="font-size:0.95rem; font-weight:900; color:#111; line-height:1;">80</span>
-                            </div>
-
-                            <!-- CARLA HUD Overlay -->
-                            <div class="hud-overlay">
-                                <div class="hud-speed-center" style="transform: scale(0.8); transform-origin: bottom center;">
-                                    <div class="speed-arc-container"><div class="speed-arc-bg"></div><div class="speed-arc-fill" id="speed-arc-fill-sim" style="clip-path: inset(0 30% 0 0);"></div></div>
-                                    <div class="big-speed-val" id="hud-speed-sim">52</div>
-                                    <div class="speed-unit-text">KM/H</div>
-                                    <div class="confidence-label" id="confidence-label-sim">94% CONFIDENCE · 360° RADAR + LiDAR</div>
-                                </div>
-                                <div class="action-banner" style="font-size: 0.75rem; padding: 8px 14px; border-radius:10px;">
-                                    <div class="action-label">CARLA Autopilot & Groq Decision Engine</div>
-                                    <div class="action-text" id="action-text-sim">🟢 AUTOPILOT ACTIVE · MAINTAINING CRUISE SPEED</div>
-                                    <div class="action-reason" id="action-reason-sim">Path clear ahead. Side radar monitoring adjacent lanes for safe lane changes.</div>
-                                </div>
-                            </div>
+                        <div class="speed-meta-row">
+                            <span>TARGET: <b style="color:#fff;" id="hud-target-speed">70 KM/H</b></span>
+                            <span>LIMIT: <b style="color:#fff;">80 KM/H</b></span>
+                            <span>GEAR: <b style="color:var(--safety-green);">D</b></span>
                         </div>
                     </div>
 
-                    <!-- Side Column: Explainable AI & Alerts Feed -->
-                    <div style="display:flex; flex-direction:column; gap:14px;">
-                        <!-- Current Recommendation Hero Card -->
-                        <div class="card rec-card" style="flex:1;">
-                            <div class="card-title">
-                                <span>🎯 EXPLAINABLE AI GUIDANCE</span>
-                                <span class="badge groq-badge" style="font-size:0.6rem;">⚡ GROQ LPU GROUNDED</span>
-                            </div>
-                            <div class="rec-body">
-                                <div class="rec-hero-banner" id="rec-hero-banner">
-                                    <div class="rec-icon" id="rec-icon">🟢</div>
-                                    <div class="rec-action-text" id="rec-action-text">MAINTAIN CRUISE</div>
-                                </div>
-                                
-                                <div class="rec-metrics-row">
-                                    <div class="rec-m-item">
-                                        <span class="rec-m-label">Risk Level</span>
-                                        <span class="badge badge-healthy" id="rec-risk-badge">LOW</span>
-                                    </div>
-                                    <div class="rec-m-item">
-                                        <span class="rec-m-label">Model Confidence</span>
-                                        <span class="rec-conf-val" id="rec-conf-val">94%</span>
-                                    </div>
-                                </div>
-
-                                <div class="rec-reason-box">
-                                    <div class="rec-reason-label">Evidence-Grounded Reasoning</div>
-                                    <div class="rec-reason-text" id="rec-reason-text">
-                                        Lane clear. MPC tracking centerline. Auto-lane change ready if slower traffic detected.
-                                    </div>
-                                </div>
-
-                                <button class="btn-logic-modal" onclick="openDecisionLogicModal()">
-                                    🧠 VIEW DECISION LOGIC HIERARCHY
-                                </button>
-                            </div>
+                    <!-- Floating Cockpit Guidance Decision HUD -->
+                    <div class="hud-decision-overlay">
+                        <div class="hud-decision-header">
+                            <span class="hud-action-title" id="hud-action-title">MAINTAIN CRUISE</span>
+                            <span class="hud-confidence-pill" id="hud-conf-pill">94% CONF</span>
                         </div>
-
-                        <!-- Recent Alerts Feed -->
-                        <div class="card alerts-card" style="max-height: 220px;">
-                            <div class="card-title">
-                                <span>🔔 RECENT HAZARD ALERTS</span>
-                                <span class="badge" style="font-size:0.55rem; background:rgba(255,255,255,0.06); color:var(--text-dim);" id="alert-feed-count">3 ALERTS</span>
-                            </div>
-                            <div class="alerts-feed" id="alertsFeed">
-                                <div class="alert-item">
-                                    <div class="alert-left"><span class="alert-dot green"></span><div><div class="alert-title">360° Radar Clear</div><div class="alert-sub">Side sensors active</div></div></div>
-                                    <div class="alert-right"><span class="badge badge-healthy" style="font-size:0.55rem;">SAFE</span><span class="alert-time">10:24</span></div>
-                                </div>
-                                <div class="alert-item">
-                                    <div class="alert-left"><span class="alert-dot amber"></span><div><div class="alert-title">Motorcycle Weaving</div><div class="alert-sub">Caution distance 18m</div></div></div>
-                                    <div class="alert-right"><span class="badge badge-warning" style="font-size:0.55rem;">HIGH</span><span class="alert-time">10:22</span></div>
-                                </div>
-                                <div class="alert-item">
-                                    <div class="alert-left"><span class="alert-dot green"></span><div><div class="alert-title">Lane Centering</div><div class="alert-sub">MPC steering nominal</div></div></div>
-                                    <div class="alert-right"><span class="badge badge-healthy" style="font-size:0.55rem;">SAFE</span><span class="alert-time">10:20</span></div>
-                                </div>
-                            </div>
+                        <div class="hud-hazard-row" id="hud-hazard-row">
+                            <span>🚗</span>
+                            <span id="hud-hazard-id">VEHICLE_01</span>
+                            <span style="color:var(--text-subtle);">·</span>
+                            <span style="font-family:var(--font-mono); color:var(--purple-accent);" id="hud-hazard-dist">28.5m</span>
                         </div>
-                    </div>
-                </div>
-
-                <div class="dash-grid-mid">
-                    <!-- 2D Top-View Surround Distance Radar Card -->
-                    <div class="card radar-card" style="min-height:300px;">
-                        <div class="card-title">
-                            <span>📡 2D TOP-DOWN SURROUND RADAR</span>
-                            <span class="badge badge-healthy" style="font-size:0.55rem;">360° SENSOR ARCS</span>
-                        </div>
-                        <div class="radar-container" style="position:relative; width:100%; height:260px; background:#070b14; border-radius:10px; display:flex; align-items:center; justify-content:center;">
-                            <canvas id="radarCanvas" width="340" height="250" style="width:100%; height:100%; display:block;"></canvas>
-                        </div>
-                    </div>
-
-                    <!-- 4-Way Camera Views -->
-                    <div class="card cams-card" style="min-height:300px;">
-                        <div class="card-title">
-                            <span>📸 4-CHANNEL LIVE CAMERA VISION</span>
-                            <span class="badge" style="font-size:0.55rem; background:rgba(255,255,255,0.06);">80° FOV · RADAR SCAN</span>
-                        </div>
-                        <div class="cams-grid">
-                            <div class="cam-box active">
-                                <div class="cam-label-row">
-                                    <span class="cam-label">📷 Front Camera</span>
-                                    <span class="cam-tag tag-green">MAIN · 150m</span>
-                                </div>
-                                <div class="cam-render-box">
-                                    <canvas id="camCanvasFront" width="180" height="95"></canvas>
-                                </div>
-                            </div>
-                            <div class="cam-box">
-                                <div class="cam-label-row">
-                                    <span class="cam-label">👈 Left Blind Zone</span>
-                                    <span class="cam-tag tag-amber">SCAN · 30m</span>
-                                </div>
-                                <div class="cam-render-box">
-                                    <canvas id="camCanvasLeft" width="180" height="95"></canvas>
-                                </div>
-                            </div>
-                            <div class="cam-box">
-                                <div class="cam-label-row">
-                                    <span class="cam-label">👉 Right Blind Zone</span>
-                                    <span class="cam-tag tag-amber">SCAN · 30m</span>
-                                </div>
-                                <div class="cam-render-box">
-                                    <canvas id="camCanvasRight" width="180" height="95"></canvas>
-                                </div>
-                            </div>
-                            <div class="cam-box">
-                                <div class="cam-label-row">
-                                    <span class="cam-label">👇 Rear Radar Zone</span>
-                                    <span class="cam-tag tag-blue">SCAN · 40m</span>
-                                </div>
-                                <div class="cam-render-box">
-                                    <canvas id="camCanvasRear" width="180" height="95"></canvas>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Confidence Over Time & High-Sensitivity Telemetry Chart -->
-                    <div class="card chart-card" style="min-height:300px;">
-                        <div class="card-title">
-                            <span>📈 HIGH-SENSITIVITY PERCEPTION TELEMETRY</span>
-                            <span class="badge badge-healthy" id="chart-latest-conf" style="font-family:'JetBrains Mono';">94%</span>
-                        </div>
-                        <div class="chart-container">
-                            <svg id="confidenceChartSvg" viewBox="0 0 380 160" preserveAspectRatio="none">
-                                <defs>
-                                    <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stop-color="var(--tesla-blue)" stop-opacity="0.5"/>
-                                        <stop offset="100%" stop-color="var(--tesla-blue)" stop-opacity="0.0"/>
-                                    </linearGradient>
-                                </defs>
-                                <path id="chartAreaPath" fill="url(#chartGrad)" d=""/>
-                                <path id="chartLinePath" fill="none" stroke="var(--tesla-blue)" stroke-width="2.5" stroke-linecap="round" d=""/>
-                                <circle id="chartDot" cx="350" cy="40" r="5" fill="#ffffff" stroke="var(--tesla-blue)" stroke-width="3"/>
-                            </svg>
-                            <div class="chart-y-axis">
-                                <span>100%</span>
-                                <span>75%</span>
-                                <span>50%</span>
-                                <span>25%</span>
-                                <span>0%</span>
-                            </div>
-                            <div class="chart-x-axis" id="chartXAxis">
-                                <span>10:19</span><span>10:20</span><span>10:21</span><span>10:22</span><span>10:23</span><span>10:24</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                            <span class="badge groq-badge" style="font-size:0.55rem;">EXPLAINABLE AI</span>
-                        </div>
-                        <div class="usp-body">
-                            <div class="usp-head">
-                                <div class="usp-scenario-title" id="usp-scenario-title">🤖 MOTORCYCLE WEAVING</div>
-                                <span class="badge badge-warning" id="usp-mult-badge">Unpredictability ×1.3</span>
-                            </div>
-                            <div class="usp-details">
-                                <div class="usp-d-item">
-                                    <span class="usp-d-lbl">Classifier Horizon</span>
-                                    <span class="usp-d-val" id="usp-horizon">1.0s (High Chaos)</span>
-                                </div>
-                                <div class="usp-d-item">
-                                    <span class="usp-d-lbl">Waymo Schema</span>
-                                    <span class="usp-d-val" id="usp-decay">3D LiDAR BBoxes</span>
-                                </div>
-                                <div class="usp-d-item">
-                                    <span class="usp-d-lbl">Traffic Signal</span>
-                                    <span class="usp-d-val" style="color:var(--tesla-green);" id="usp-signal">GREEN (85m)</span>
-                                </div>
-                            </div>
-                            <div class="usp-reason-box" id="usp-reason-box">
-                                Trajectory predicted using chaotic kinematic model. Unpredictable lateral oscillation accounted for in RSS braking buffer.
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Trip Summary Bar -->
-                <div class="trip-summary-bar">
-                    <div class="ts-title">
-                        <span>📊 TRIP PERFORMANCE SUMMARY</span>
-                    </div>
-                    <div class="ts-grid">
-                        <div class="ts-item">
-                            <div class="ts-icon">⏱️</div>
-                            <div class="ts-meta">
-                                <div class="ts-lbl">TRIP TIME</div>
-                                <div class="ts-val" id="ts-time">01:24:33</div>
-                            </div>
-                        </div>
-                        <div class="ts-item">
-                            <div class="ts-icon">📍</div>
-                            <div class="ts-meta">
-                                <div class="ts-lbl">DISTANCE</div>
-                                <div class="ts-val" id="ts-dist">18.7 km</div>
-                            </div>
-                        </div>
-                        <div class="ts-item">
-                            <div class="ts-icon">⚠️</div>
-                            <div class="ts-meta">
-                                <div class="ts-lbl">HAZARDS</div>
-                                <div class="ts-val" id="ts-hazards">7</div>
-                            </div>
-                        </div>
-                        <div class="ts-item">
-                            <div class="ts-icon">🔔</div>
-                            <div class="ts-meta">
-                                <div class="ts-lbl">ALERTS</div>
-                                <div class="ts-val" id="ts-alerts">3</div>
-                            </div>
-                        </div>
-                        <div class="ts-item">
-                            <div class="ts-icon">🛡️</div>
-                            <div class="ts-meta">
-                                <div class="ts-lbl">AVG. CONFIDENCE</div>
-                                <div class="ts-val" id="ts-avg-conf">87%</div>
-                            </div>
+                        <div class="hud-reason-text" id="hud-reason-text">
+                            Path clear ahead. MPC maintaining centerline trajectory. Side radar monitoring adjacent lanes.
                         </div>
                     </div>
                 </div>
             </section>
 
-
-
-            <!-- === 02 DECISIONS VIEW === -->
-            <section id="decisions" class="view-pane" data-pane="decisions">
-                <div class="card">
-                    <div class="card-title"><span>🎯 02 THREAT MATRIX · HAZARD PERCEPTION & GROQ AI REASONING</span><span id="risk-count-badge-dec" class="badge badge-healthy">0 DETECTED</span></div>
-                    <div id="hazardsList-dec" class="hazards-list"></div>
-                </div>
-                <div class="card" style="margin-top:16px;">
-                    <div class="card-title"><span>🧠 GROQ AI · EVIDENCE-GROUNDED REASONING</span><span class="badge groq-badge" style="font-size:0.6rem;">⚡ GROQ</span></div>
-                    <div id="justificationsList-dec" class="justifications-list"></div>
+            <!-- ============================================================
+                 02 LIVE DRIVE VIEW (FULLSCREEN GAMIFIED PLAYABLE)
+                 ============================================================ -->
+            <section id="livedrive" class="view-pane" data-pane="livedrive" style="padding:20px;">
+                <div class="card-auto" style="flex:1; position:relative;">
+                    <div class="card-auto-title">
+                        <span>🎮 02 LIVE PLAYABLE DRIVE ENGINE</span>
+                        <span style="font-family:var(--font-mono); color:var(--safety-green);" id="drive-score-tag">SCORE: 840 · STREAK 01:24</span>
+                    </div>
+                    <div id="viewport-box-livedrive" style="flex:1; min-height:400px; background:#000; border-radius:8px; overflow:hidden;"></div>
                 </div>
             </section>
 
-            <!-- === 03 ANALYTICS VIEW === -->
-            <section id="analytics" class="view-pane" data-pane="analytics">
-                <div class="card">
-                    <div class="card-title"><span>📊 03 TRIP PERFORMANCE & KAGGLE TELEMETRY ANALYTICS</span><span class="badge badge-healthy" id="analytics-live-tag">⚡ LIVE 60 FPS STREAM</span></div>
-                    <div class="analytics-grid">
-                        <div class="perf-stat"><div class="perf-stat-label">Trip Timer</div><div class="perf-stat-val" id="trip-timer-an" style="color:var(--tesla-blue);">00:00</div></div>
-                        <div class="perf-stat"><div class="perf-stat-label">Hazard Alerts</div><div class="perf-stat-val" id="trip-alerts-an" style="color:var(--high);">0</div></div>
-                        <div class="perf-stat"><div class="perf-stat-label">Path Deviation</div><div class="perf-stat-val" id="trip-dev-an" style="color:var(--medium);">0.0m</div></div>
-                        <div class="perf-stat"><div class="perf-stat-label">Circuit Breaker</div><div class="perf-stat-val" id="val-cb-an" style="color:var(--tesla-green); font-size:0.9rem;">CLOSED</div></div>
-                        <div class="perf-stat"><div class="perf-stat-label">AEB Brake State</div><div class="perf-stat-val" id="val-aeb-an" style="color:var(--tesla-green); font-size:0.9rem;">STANDBY</div></div>
-                    </div>
-                </div>
-                <div class="card" style="margin-top:16px;">
-                    <div class="card-title"><span>📈 DYNAMIC HIGH-SENSITIVITY PERCEPTION CHARTS (KAGGLE REPLAY STREAM)</span></div>
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-                        <div>
-                            <div style="font-size:0.68rem; font-weight:700; color:var(--tesla-cyan); margin-bottom:6px; display:flex; justify-space-between;">
-                                <span>⚡ Velocity (mph) vs Threat Risk Index</span>
-                                <span id="val-chart1-tag" style="font-family:'JetBrains Mono';">60.0 mph | 0.04 Risk</span>
-                            </div>
-                            <canvas id="chart-speed-risk" width="400" height="150" style="width:100%; height:130px; border:1px solid rgba(255,255,255,0.08); border-radius:6px; background:rgba(10,14,23,0.8);"></canvas>
-                        </div>
-                        <div>
-                            <div style="font-size:0.68rem; font-weight:700; color:var(--tesla-green); margin-bottom:6px; display:flex; justify-space-between;">
-                                <span>🎯 Model Perception Confidence (%) & Radar SNR</span>
-                                <span id="val-chart2-tag" style="font-family:'JetBrains Mono';">96% Conf</span>
-                            </div>
-                            <canvas id="chart-confidence-time" width="400" height="150" style="width:100%; height:130px; border:1px solid rgba(255,255,255,0.08); border-radius:6px; background:rgba(10,14,23,0.8);"></canvas>
-                        </div>
-                        <div>
-                            <div style="font-size:0.68rem; font-weight:700; color:var(--tesla-blue); margin-bottom:6px; display:flex; justify-space-between;">
-                                <span>📡 360° LiDAR Sensor Proximity Delta (Front / Side / Rear)</span>
-                                <span id="val-chart3-tag" style="font-family:'JetBrains Mono';">F:250m | R:100m</span>
-                            </div>
-                            <canvas id="chart-lidar-proximity" width="400" height="150" style="width:100%; height:130px; border:1px solid rgba(255,255,255,0.08); border-radius:6px; background:rgba(10,14,23,0.8);"></canvas>
-                        </div>
-                        <div>
-                            <div style="font-size:0.68rem; font-weight:700; color:var(--high); margin-bottom:6px; display:flex; justify-space-between;">
-                                <span>📊 Kaggle Object Density & LPU Decision Latency (ms)</span>
-                                <span id="val-chart4-tag" style="font-family:'JetBrains Mono';">45 ms / tick</span>
-                            </div>
-                            <canvas id="chart-density-latency" width="400" height="150" style="width:100%; height:130px; border:1px solid rgba(255,255,255,0.08); border-radius:6px; background:rgba(10,14,23,0.8);"></canvas>
+            <!-- ============================================================
+                 03 CAMERAS VIEW
+                 ============================================================ -->
+            <section id="cameras" class="view-pane" data-pane="cameras" style="padding:20px;">
+                <div style="display:grid; grid-template-columns: 2fr 1fr; gap:16px; height:100%;">
+                    <div class="card-auto">
+                        <div class="card-auto-title"><span>📷 FRONT PRIMARY CAMERA (DOMINANT FEED)</span><span class="header-badge">1080P 60FPS</span></div>
+                        <div style="flex:1; background:#000; border-radius:8px; display:flex; align-items:center; justify-content:center; position:relative;">
+                            <canvas id="camCanvasFront" width="640" height="360" style="width:100%; height:100%; object-fit:cover;"></canvas>
                         </div>
                     </div>
-                </div>
-                <div class="card" style="margin-top:16px;">
-                    <div class="card-title"><span>⏱️ 5-STAGE PIPELINE LATENCY BUDGET (MS)</span></div>
-                    <div id="latency-bars" style="display:flex;flex-direction:column;gap:7px;">
-                        <div>
-                            <div style="display:flex; justify-content:space-between; font-size:0.62rem; margin-bottom:2px;">
-                                <span style="color:var(--text-muted);">Sensor SAL</span>
-                                <span id="lat-val-sal" style="font-family:'JetBrains Mono'; color:var(--tesla-green);">2.1 / 10ms</span>
-                            </div>
-                            <div class="pm-bar"><div id="lat-bar-sal" class="pm-bar-fill" style="width:21%;"></div></div>
+                    <div style="display:flex; flex-direction:column; gap:16px;">
+                        <div class="card-auto" style="flex:1;">
+                            <div class="card-auto-title"><span>FRONT LEFT</span></div>
+                            <canvas id="camCanvasLeft" width="320" height="180" style="width:100%; height:100%; object-fit:cover; border-radius:6px;"></canvas>
                         </div>
-                        <div>
-                            <div style="display:flex; justify-content:space-between; font-size:0.62rem; margin-bottom:2px;">
-                                <span style="color:var(--text-muted);">Perception (ML)</span>
-                                <span id="lat-val-perc" style="font-family:'JetBrains Mono'; color:var(--tesla-blue);">34 / 50ms</span>
-                            </div>
-                            <div class="pm-bar"><div id="lat-bar-perc" class="pm-bar-fill" style="width:68%;"></div></div>
+                        <div class="card-auto" style="flex:1;">
+                            <div class="card-auto-title"><span>FRONT RIGHT</span></div>
+                            <canvas id="camCanvasRight" width="320" height="180" style="width:100%; height:100%; object-fit:cover; border-radius:6px;"></canvas>
                         </div>
-                        <div>
-                            <div style="display:flex; justify-content:space-between; font-size:0.62rem; margin-bottom:2px;">
-                                <span style="color:var(--text-muted);">Risk Analysis</span>
-                                <span id="lat-val-risk" style="font-family:'JetBrains Mono'; color:var(--tesla-green);">1.8 / 10ms</span>
-                            </div>
-                            <div class="pm-bar"><div id="lat-bar-risk" class="pm-bar-fill" style="width:18%;"></div></div>
-                        </div>
-                        <div>
-                            <div style="display:flex; justify-content:space-between; font-size:0.62rem; margin-bottom:2px;">
-                                <span style="color:var(--text-muted);">Groq LLM Justification</span>
-                                <span id="lat-val-groq" style="font-family:'JetBrains Mono'; color:var(--high);">412 / 2000ms</span>
-                            </div>
-                            <div class="pm-bar"><div id="lat-bar-groq" class="pm-bar-fill" style="width:21%; background:linear-gradient(90deg, #f55036, var(--tesla-cyan));"></div></div>
-                        </div>
-                        <div>
-                            <div style="display:flex; justify-content:space-between; font-size:0.62rem; margin-bottom:2px;">
-                                <span style="color:var(--text-muted); font-weight:700;">Total Tick</span>
-                                <span id="lat-val-total" style="font-family:'JetBrains Mono'; color:var(--tesla-green); font-weight:700;">450 / 200ms</span>
-                            </div>
-                            <div class="pm-bar"><div id="lat-bar-total" class="pm-bar-fill" style="width:100%; background:linear-gradient(90deg, var(--tesla-green), var(--high));"></div></div>
+                        <div class="card-auto" style="flex:1;">
+                            <div class="card-auto-title"><span>REAR CAMERA</span></div>
+                            <canvas id="camCanvasRear" width="320" height="180" style="width:100%; height:100%; object-fit:cover; border-radius:6px;"></canvas>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <!-- === 04 SCENARIOS VIEW === -->
-            <section id="scenarios" class="view-pane" data-pane="scenarios">
-                <div class="card">
-                    <div class="card-title"><span>🎯 04 SCENARIOS, COMPUTATION MATHEMATICS & DATASET FEEDS</span></div>
-                    <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:14px;">
-                        Interactive edge-case launcher grounded in Waymo Open Dataset & Kaggle Zara2099 telemetry. Each scenario calculates Time-To-Collision (TTC) & RSS safety bounds in real-time.
+            <!-- ============================================================
+                 04 MAP VIEW (AUTOMOTIVE RVIZ SPATIAL NAVIGATION MAP)
+                 ============================================================ -->
+            <section id="map" class="view-pane" data-pane="map" style="padding:20px;">
+                <div class="card-auto" style="flex:1; position:relative;">
+                    <div class="card-auto-title">
+                        <span>🗺️ 04 AUTOMOTIVE RVIZ SPATIAL NAVIGATION MAP</span>
+                        <span style="font-family:var(--font-mono); color:var(--text-dim);">FREQ: 10HZ STREAM</span>
                     </div>
-                    <div class="scenario-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:14px;">
-                        <div class="card" style="background:rgba(17,24,39,0.7); border:1px solid rgba(255,255,255,0.08); padding:14px;">
-                            <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <span style="font-size:1.05rem; font-weight:800; color:var(--tesla-cyan);">🚴 Cyclist Overtake</span>
-                                <span class="badge badge-healthy">RSS Safe Pass</span>
-                            </div>
-                            <div style="font-size:0.72rem; color:var(--text-dim); margin-top:6px; line-height:1.4;">
-                                <b>Objective:</b> Detect slow lateral moving cyclist (10 km/h) on right shoulder and execute 1.5m lateral passing buffer.
-                            </div>
-                            <div style="background:rgba(0,0,0,0.3); border-radius:4px; padding:8px; margin-top:8px; font-family:'JetBrains Mono'; font-size:0.65rem; color:var(--tesla-blue);">
-                                Formula: d_pass = v_ego * t_react + 1.5m<br>
-                                Computation: Δv = 50 mph | Lateral Offset: +3.8m
-                            </div>
-                            <button class="btn" style="width:100%; margin-top:10px; border-color:var(--tesla-cyan); color:var(--tesla-cyan);" onclick="spawnRealisticScenario('cyclist_overtake')">▶ Launch Cyclist Scenario</button>
-                        </div>
+                    <div style="flex:1; background:#04060a; border-radius:8px; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center;">
+                        <canvas id="radarCanvas" width="800" height="500" style="width:100%; height:100%; display:block;"></canvas>
+                    </div>
+                </div>
+            </section>
 
-                        <div class="card" style="background:rgba(17,24,39,0.7); border:1px solid rgba(255,255,255,0.08); padding:14px;">
-                            <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <span style="font-size:1.05rem; font-weight:800; color:var(--high);">🚶 Pedestrian Crossing</span>
-                                <span class="badge badge-critical">Critical AEB</span>
-                            </div>
-                            <div style="font-size:0.72rem; color:var(--text-dim); margin-top:6px; line-height:1.4;">
-                                <b>Objective:</b> Vulnerable Road User (VRU) walking across path at 2 km/h. Forces deterministic 360° AEB hard stop.
-                            </div>
-                            <div style="background:rgba(0,0,0,0.3); border-radius:4px; padding:8px; margin-top:8px; font-family:'JetBrains Mono'; font-size:0.65rem; color:var(--high);">
-                                Formula: TTC = d_long / (v_ego - v_target)<br>
-                                Threshold: TTC &lt; 1.8s ➔ Hard Brake 95 mph/s
-                            </div>
-                            <button class="btn btn-danger" style="width:100%; margin-top:10px;" onclick="spawnRealisticScenario('pedestrian_crossing')">🚨 Launch Pedestrian Crossing</button>
-                        </div>
+            <!-- ============================================================
+                 05 DECISIONS VIEW (AV-01 REASONING CHAIN & THREAT MATRIX)
+                 ============================================================ -->
+            <section id="decisions" class="view-pane" data-pane="decisions" style="padding:20px; gap:16px;">
+                <div class="card-auto">
+                    <div class="card-auto-title">
+                        <span>⚡ 05 AV-01 REASONING CHAIN (SENSE → RISK → PLAN → RECOMMEND → EXPLAIN)</span>
+                        <span class="header-badge" id="decisions-conf-tag">94% CONFIDENCE</span>
+                    </div>
+                    <div id="justificationsList-dec"></div>
+                </div>
 
-                        <div class="card" style="background:rgba(17,24,39,0.7); border:1px solid rgba(255,255,255,0.08); padding:14px;">
-                            <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <span style="font-size:1.05rem; font-weight:800; color:var(--tesla-yellow);">🚗 Lead Brake Check</span>
-                                <span class="badge badge-warning">TACC Decel</span>
-                            </div>
-                            <div style="font-size:0.72rem; color:var(--text-dim); margin-top:6px; line-height:1.4;">
-                                <b>Objective:</b> Lead vehicle decelerates rapidly from 60 km/h to 10 km/h. Vehicle matches lead speed with RSS gap.
-                            </div>
-                            <div style="background:rgba(0,0,0,0.3); border-radius:4px; padding:8px; margin-top:8px; font-family:'JetBrains Mono'; font-size:0.65rem; color:var(--tesla-yellow);">
-                                Formula: d_min = v_ego * ρ + 0.5 a_ego ρ²<br>
-                                Computation: Gap = 18.5m | Decel: -18 mph/s
-                            </div>
-                            <button class="btn" style="width:100%; margin-top:10px; border-color:var(--tesla-yellow); color:var(--tesla-yellow);" onclick="spawnRealisticScenario('lead_vehicle_brake')">▶ Launch Lead Brake Check</button>
-                        </div>
+                <div class="card-auto">
+                    <div class="card-auto-title">
+                        <span>🎯 MULTI-AGENT PERCEPTION THREAT MATRIX</span>
+                        <span style="font-family:var(--font-mono); color:var(--text-dim);" id="risk-count-badge-dec">7 ENTITIES TRACKED</span>
+                    </div>
+                    <div id="hazardsList-dec"></div>
+                </div>
+            </section>
 
-                        <div class="card" style="background:rgba(17,24,39,0.7); border:1px solid rgba(255,255,255,0.08); padding:14px;">
-                            <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <span style="font-size:1.05rem; font-weight:800; color:var(--tesla-blue);">🛣️ Highway Traffic</span>
-                                <span class="badge badge-healthy">Multi-Agent Flow</span>
-                            </div>
-                            <div style="font-size:0.72rem; color:var(--text-dim); margin-top:6px; line-height:1.4;">
-                                <b>Objective:</b> Dense highway stream with trucks, cars, motorcycles, and rear-approaching speeders executing lane shifts.
-                            </div>
-                            <div style="background:rgba(0,0,0,0.3); border-radius:4px; padding:8px; margin-top:8px; font-family:'JetBrains Mono'; font-size:0.65rem; color:var(--tesla-blue);">
-                                Formula: Risk = Σ w_i * (1 / TTC_i)<br>
-                                Entities: 7 Active Agents | 10Hz Stream
-                            </div>
-                            <button class="btn" style="width:100%; margin-top:10px;" onclick="spawnRealisticScenario('traffic_flow')">▶ Launch Highway Traffic</button>
+            <!-- ============================================================
+                 06 ANALYTICS VIEW (ACCUMULATED LIVE TELEMETRY CHARTS)
+                 ============================================================ -->
+            <section id="analytics" class="view-pane" data-pane="analytics" style="padding:20px; gap:16px;">
+                <div class="analytics-grid-auto">
+                    <div class="stat-box-auto">
+                        <div class="stat-label-auto">Trip Duration</div>
+                        <div class="stat-val-auto" id="trip-timer-an">01:24</div>
+                    </div>
+                    <div class="stat-box-auto">
+                        <div class="stat-label-auto">Hazard Alerts</div>
+                        <div class="stat-val-auto" id="trip-alerts-an" style="color:var(--safety-amber);">3</div>
+                    </div>
+                    <div class="stat-box-auto">
+                        <div class="stat-label-auto">Path Deviation</div>
+                        <div class="stat-val-auto" id="trip-dev-an" style="color:var(--safety-green);">0.12m</div>
+                    </div>
+                    <div class="stat-box-auto">
+                        <div class="stat-label-auto">Pipeline Latency</div>
+                        <div class="stat-val-auto" id="val-latency-an" style="color:#fff;">42 ms</div>
+                    </div>
+                </div>
+
+                <div class="card-auto">
+                    <div class="card-auto-title"><span>📈 60 FPS ACCUMULATED TELEMETRY STREAMS</span></div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                        <div>
+                            <div style="font-size:0.7rem; color:var(--text-subtle); margin-bottom:4px;">Velocity vs Threat Risk</div>
+                            <canvas id="chart-speed-risk" width="400" height="140" style="width:100%; height:130px; background:#080808; border-radius:6px; border:1px solid var(--border-subtle);"></canvas>
+                        </div>
+                        <div>
+                            <div style="font-size:0.7rem; color:var(--text-subtle); margin-bottom:4px;">Perception Model Confidence (%)</div>
+                            <canvas id="chart-confidence-time" width="400" height="140" style="width:100%; height:130px; background:#080808; border-radius:6px; border:1px solid var(--border-subtle);"></canvas>
+                        </div>
+                        <div>
+                            <div style="font-size:0.7rem; color:var(--text-subtle); margin-bottom:4px;">360° LiDAR Sensor Proximity (m)</div>
+                            <canvas id="chart-lidar-proximity" width="400" height="140" style="width:100%; height:130px; background:#080808; border-radius:6px; border:1px solid var(--border-subtle);"></canvas>
+                        </div>
+                        <div>
+                            <div style="font-size:0.7rem; color:var(--text-subtle); margin-bottom:4px;">Object Density & LPU Latency (ms)</div>
+                            <canvas id="chart-density-latency" width="400" height="140" style="width:100%; height:130px; background:#080808; border-radius:6px; border:1px solid var(--border-subtle);"></canvas>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <!-- === 05 SYSTEM HEALTH VIEW === -->
-            <section id="health" class="view-pane" data-pane="health">
-                <div class="card">
-                    <div class="card-title"><span>🏥 05 SUBSYSTEM HEALTH & PROCESS WATCHDOG</span></div>
-                    <div class="analytics-grid" style="grid-template-columns:repeat(3, 1fr); margin-top:14px;">
-                        <div class="perf-stat"><div class="perf-stat-label">Sensors Hardware SAL</div><div class="perf-stat-val" style="color:var(--tesla-green);">96% ACTIVE</div></div>
-                        <div class="perf-stat"><div class="perf-stat-label">Perception ML Model</div><div class="perf-stat-val" style="color:var(--tesla-green);">92% ACCURACY</div></div>
-                        <div class="perf-stat"><div class="perf-stat-label">MPC Tactical Planning</div><div class="perf-stat-val" style="color:var(--tesla-green);">94% NOMINAL</div></div>
-                        <div class="perf-stat"><div class="perf-stat-label">Groq LLM Latency</div><div class="perf-stat-val" style="color:var(--tesla-cyan);">112 ms</div></div>
-                        <div class="perf-stat"><div class="perf-stat-label">Control MPC System</div><div class="perf-stat-val" style="color:var(--tesla-green);">95% OPTIMAL</div></div>
-                        <div class="perf-stat"><div class="perf-stat-label">WebSocket Stream</div><div class="perf-stat-val" style="color:var(--tesla-green);">10 Hz CONNECTED</div></div>
+            <!-- ============================================================
+                 07 LOGS VIEW (REAL-TIME ENGINEERING DIAGNOSTIC TELEMETRY)
+                 ============================================================ -->
+            <section id="logs" class="view-pane" data-pane="logs" style="padding:20px;">
+                <div class="card-auto">
+                    <div class="card-auto-title"><span>📋 07 REAL-TIME TELEMETRY DIAGNOSTIC LOGS</span><span class="header-badge">LIVE EVENT STREAM</span></div>
+                    <table class="table-auto">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Frame ID</th>
+                                <th>Source</th>
+                                <th>Dominant Hazard</th>
+                                <th>Distance</th>
+                                <th>Action</th>
+                                <th>Confidence</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logs-table-body">
+                            <tr>
+                                <td style="font-family:var(--font-mono);">10:24:32.102</td>
+                                <td style="font-family:var(--font-mono);">#1420</td>
+                                <td>Synthetic</td>
+                                <td>VEHICLE_01</td>
+                                <td style="font-family:var(--font-mono);">28.5m</td>
+                                <td style="color:var(--safety-green); font-weight:700;">MAINTAIN CRUISE</td>
+                                <td style="font-family:var(--font-mono);">94%</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ============================================================
+                 08 SCENARIOS VIEW (DRIVING MISSION LAUNCHER)
+                 ============================================================ -->
+            <section id="scenarios" class="view-pane" data-pane="scenarios" style="padding:20px;">
+                <div class="card-auto">
+                    <div class="card-auto-title"><span>🎯 08 EDGE-CASE DRIVING MISSION LAUNCHER</span></div>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap:16px; margin-top:8px;">
+                        <div class="card-auto" style="background:#0e0e0e;">
+                            <div class="card-auto-title"><span>🚴 Cyclist Overtake</span><span class="header-badge">RSS Safe Pass</span></div>
+                            <div style="font-size:0.72rem; color:var(--text-dim);">Execute 1.5m lateral offset passing buffer around slow cyclist.</div>
+                            <button class="btn-cockpit" style="margin-top:8px;" onclick="spawnRealisticScenario('cyclist_overtake')">Launch Mission</button>
+                        </div>
+                        <div class="card-auto" style="background:#0e0e0e;">
+                            <div class="card-auto-title"><span>🚶 Pedestrian Crossing</span><span class="header-badge" style="color:var(--safety-red);">Critical AEB</span></div>
+                            <div style="font-size:0.72rem; color:var(--text-dim);">Vulnerable Road User walking across ego path. Forces 360° AEB hard stop.</div>
+                            <button class="btn-cockpit btn-cockpit-danger" style="margin-top:8px;" onclick="spawnRealisticScenario('pedestrian_crossing')">Launch Mission</button>
+                        </div>
+                        <div class="card-auto" style="background:#0e0e0e;">
+                            <div class="card-auto-title"><span>🚗 Lead Brake Check</span><span class="header-badge" style="color:var(--safety-amber);">TACC Decel</span></div>
+                            <div style="font-size:0.72rem; color:var(--text-dim);">Lead vehicle rapidly decelerates. Vehicle matches speed with RSS gap.</div>
+                            <button class="btn-cockpit" style="margin-top:8px;" onclick="spawnRealisticScenario('lead_vehicle_brake')">Launch Mission</button>
+                        </div>
+                        <div class="card-auto" style="background:#0e0e0e;">
+                            <div class="card-auto-title"><span>🏍️ Motorcycle Weaving</span><span class="header-badge">High Chaos</span></div>
+                            <div style="font-size:0.72rem; color:var(--text-dim);">Fast motorcycle cutting lanes with lateral trajectory shifts.</div>
+                            <button class="btn-cockpit" style="margin-top:8px;" onclick="spawnRealisticScenario('motorcycle_weaving')">Launch Mission</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================
+                 09 SYSTEM HEALTH VIEW (SUBSYSTEM WATCHDOG)
+                 ============================================================ -->
+            <section id="system" class="view-pane" data-pane="system" style="padding:20px;">
+                <div class="card-auto">
+                    <div class="card-auto-title"><span>🏥 09 SUBSYSTEM WATCHDOG & PROCESS MONITOR</span></div>
+                    <div class="analytics-grid-auto" style="margin-top:8px;">
+                        <div class="stat-box-auto">
+                            <div class="stat-label-auto">Sensors SAL</div>
+                            <div class="stat-val-auto" style="color:var(--safety-green);">ACTIVE (96%)</div>
+                        </div>
+                        <div class="stat-box-auto">
+                            <div class="stat-label-auto">Perception ML</div>
+                            <div class="stat-val-auto" style="color:var(--safety-green);">NOMINAL (92%)</div>
+                        </div>
+                        <div class="stat-box-auto">
+                            <div class="stat-label-auto">Frenet Planner</div>
+                            <div class="stat-val-auto" style="color:var(--safety-green);">OPTIMAL</div>
+                        </div>
+                        <div class="stat-box-auto">
+                            <div class="stat-label-auto">MPC Controller</div>
+                            <div class="stat-val-auto" style="color:var(--safety-green);">ACTIVE</div>
+                        </div>
+                        <div class="stat-box-auto">
+                            <div class="stat-label-auto">Groq LPU Engine</div>
+                            <div class="stat-val-auto" style="color:#fff;">112 ms</div>
+                        </div>
+                        <div class="stat-box-auto">
+                            <div class="stat-label-auto">WebSocket Feed</div>
+                            <div class="stat-val-auto" style="color:var(--safety-green);">10 Hz CONNECTED</div>
+                        </div>
                     </div>
                 </div>
             </section>
         </main>
     </div>
 
-    <!-- Decision Logic Modal Dialog -->
-    <div class="modal-overlay" id="decisionLogicModal">
-        <div class="modal-card">
-            <div class="modal-head">
-                <div class="modal-title">
-                    <span>🧠 AV-01 Decision Logic Hierarchy & Arbitration Protocol</span>
-                </div>
-                <button class="modal-close" onclick="closeDecisionLogicModal()">✕</button>
+    <!-- Modal Window: About AV-01 Objective -->
+    <div class="modal-overlay" id="aboutModal">
+        <div class="modal-auto">
+            <div class="modal-header">
+                <div class="modal-title">AV-01 — System Objective & Architecture</div>
+                <button class="modal-close-btn" onclick="closeAboutModal()">✕</button>
             </div>
-            <div class="modal-body">
-                <div class="logic-stage-card stage-1">
-                    <div class="stage-hdr">
-                        <span class="stage-tag tag-red">STAGE 1 · AEB CIRCUIT BREAKER (HARD PHYSICAL BOUNDS)</span>
-                    </div>
-                    <div class="stage-desc">
-                        Deterministic physics evaluates TTC &lt; 2.0s or distance &lt; 15m. Hard-engages Autonomous Emergency Braking (AEB), bypassing all AI layers for guaranteed safety.
-                    </div>
-                </div>
-                <div class="logic-stage-card stage-2">
-                    <div class="stage-hdr">
-                        <span class="stage-tag tag-blue">STAGE 2 · MPC TACTICAL & TRAFFIC SIGNAL ARBITRATION</span>
-                    </div>
-                    <div class="stage-desc">
-                        10 Hz longitudinal Model Predictive Control regulates gap, cruise speed, traffic lights (Green/Yellow/Red), and 8 sensor zones (including Left/Right blind spots).
-                    </div>
-                </div>
-                <div class="logic-stage-card stage-3">
-                    <div class="stage-hdr">
-                        <span class="stage-tag tag-orange">STAGE 3 · WAYMO DATASET & GROQ EXPLAINABLE AI</span>
-                    </div>
-                    <div class="stage-desc">
-                        Rule-based Indian Traffic & Waymo Kinematic Predictor classifies edge cases. Groq LPU synthesizes evidence-grounded justifications with hallucination tripwire validation.
-                    </div>
+            <div style="font-size:0.8rem; color:var(--text-dim); line-height:1.6;">
+                <p style="margin-bottom:12px;">
+                    Convert real-time or simulated sensor detections into explainable driving guidance. The system does not merely register that something is present; it reasons about what that presence means for the vehicle's next move and justifies that reasoning to a human observer.
+                </p>
+                <div style="background:var(--bg-cockpit); border:1px solid var(--border-subtle); padding:12px; border-radius:8px; font-family:var(--font-mono); font-size:0.75rem; color:var(--purple-accent);">
+                    SENSE → ASSESS RISK → PLAN → RECOMMEND → CONFIDENCE → EXPLAIN → LOG
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modular AV-01 Frontend Architecture -->
+    <!-- Modular Frontend Architecture Scripts -->
     <script src="/static/js/state.js"></script>
     <script src="/static/js/simulation.js"></script>
     <script src="/static/js/radar.js"></script>
@@ -566,6 +409,5 @@
     <script src="/static/js/pages.js"></script>
     <script src="/static/js/telemetry.js"></script>
     <script src="/static/js/main.js"></script>
-    <script type="module" src="/static/map.js"></script>
 </body>
 </html>

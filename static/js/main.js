@@ -133,38 +133,125 @@ function updateClockUI() {
     }
 }
 
-function openDecisionLogicModal() {
-    const modal = document.getElementById('decisionLogicModal');
-    if (modal) modal.classList.add('active');
+// Source Feed Switchers
+function startSyntheticFeed() {
+    AVState.source = 'synthetic';
+    updateSourceFeedButtons('btn-synthetic-feed', 'SYNTHETIC');
+    if (typeof resetWorldEntities === 'function') resetWorldEntities('synthetic');
 }
 
-function closeDecisionLogicModal() {
-    const modal = document.getElementById('decisionLogicModal');
-    if (modal) modal.classList.remove('active');
+function startKaggleFeed() {
+    AVState.source = 'kaggle';
+    updateSourceFeedButtons('btn-kaggle-feed', 'KAGGLE-DRIVEN');
+    if (typeof resetWorldEntities === 'function') resetWorldEntities('kaggle');
 }
 
-function sendTrafficSignal(color) {
-    AVState.latestGuidance.trafficSignal = color;
-    const badge = document.getElementById('traffic-light-header-badge');
-    if (badge) {
-        badge.innerText = `SIGNAL: ${color} (85m)`;
-        badge.className = `badge ${color === 'GREEN' ? 'badge-healthy' : color === 'YELLOW' ? 'badge-degraded' : 'badge-critical'}`;
+function startWaymoFeed() {
+    AVState.source = 'waymo';
+    updateSourceFeedButtons('btn-waymo-feed', 'WAYMO REPLAY');
+    if (typeof resetWorldEntities === 'function') resetWorldEntities('waymo');
+}
+
+function updateSourceFeedButtons(activeBtnId, sourceName) {
+    ['btn-synthetic-feed', 'btn-kaggle-feed', 'btn-waymo-feed'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.classList.toggle('active', id === activeBtnId);
+    });
+    const badge = document.getElementById('source-badge');
+    if (badge) badge.innerText = `SOURCE: ${sourceName}`;
+}
+
+// Edge Case Handlers
+function triggerEdgeCase(type) {
+    const dot = document.getElementById('system-status-dot');
+    const txt = document.getElementById('system-status-text');
+
+    if (type === 'gap') {
+        if (dot) dot.style.background = 'var(--safety-amber)';
+        if (txt) txt.innerText = 'DEGRADED';
+        AVState.setGuidance({
+            action: '⚡ SENSOR GAP DETECTED',
+            reason: 'Front camera unavailable. Decision based on corroborating radar evidence.',
+            confidence: 0.62,
+            riskLevel: 'HIGH'
+        });
+    } else if (type === 'conflict') {
+        if (dot) dot.style.background = 'var(--safety-amber)';
+        if (txt) txt.innerText = 'CONFLICT';
+        AVState.setGuidance({
+            action: '⚠️ SENSOR CONFLICT ARBITRATED',
+            reason: 'Camera/LiDAR obstacle discrepancy. Executing conservative speed reduction.',
+            confidence: 0.71,
+            riskLevel: 'HIGH'
+        });
     }
+    if (typeof updateDecisionsUI === 'function') updateDecisionsUI();
 }
 
-function triggerManeuver(type) {
-    const badge = document.getElementById('route-maneuver-badge');
-    if (badge) {
-        badge.innerText = `🛣️ ROUTE: MANEUVER ${type} EXECUTED`;
+function triggerAEB() {
+    AVState.egoState.speedMph = 0;
+    AVState.egoState.speedMps = 0;
+    AVState.setGuidance({
+        action: '🚨 AEB HARD STOP EXECUTED',
+        reason: '360° Safety Net triggered emergency braking. Ego velocity reduced to 0 km/h.',
+        confidence: 0.99,
+        riskLevel: 'CRITICAL'
+    });
+    if (typeof updateDecisionsUI === 'function') updateDecisionsUI();
+}
+
+// Driving Mission Scenario Spawner
+function spawnRealisticScenario(scenarioName) {
+    console.log(`[Scenario] Spawning mission: ${scenarioName}`);
+    if (typeof pageRouter !== 'undefined' && pageRouter.navigateTo) {
+        pageRouter.navigateTo('dashboard');
     }
+
+    if (scenarioName === 'pedestrian_crossing') {
+        if (typeof spawnEntity === 'function') spawnEntity('pedestrian', 12.0, 0.0, 2.0);
+        AVState.setGuidance({
+            action: '🚨 REDUCE SPEED — PEDESTRIAN CROSSING',
+            reason: 'Vulnerable Road User walking across ego trajectory at 12m.',
+            confidence: 0.96,
+            riskLevel: 'CRITICAL'
+        });
+    } else if (scenarioName === 'cyclist_overtake') {
+        if (typeof spawnEntity === 'function') spawnEntity('cyclist', 18.0, 3.8, 10.0);
+        AVState.setGuidance({
+            action: '🚴 EXECUTING CYCLIST OVERTAKE',
+            reason: 'Slow cyclist detected on right shoulder. RSS 1.5m lateral offset path calculated.',
+            confidence: 0.92,
+            riskLevel: 'HIGH'
+        });
+    } else if (scenarioName === 'lead_vehicle_brake') {
+        if (typeof spawnEntity === 'function') spawnEntity('car', 22.0, 0.0, 15.0);
+        AVState.setGuidance({
+            action: '🚗 TACC DECELERATION — LEAD BRAKE CHECK',
+            reason: 'Lead vehicle rapidly decelerated. Matching lead speed with RSS safe headway gap.',
+            confidence: 0.94,
+            riskLevel: 'HIGH'
+        });
+    } else if (scenarioName === 'motorcycle_weaving') {
+        if (typeof spawnEntity === 'function') spawnEntity('motorcycle', 14.0, 1.5, 55.0);
+        AVState.setGuidance({
+            action: '🏍️ CAUTION — MOTORCYCLE WEAVING',
+            reason: 'Fast motorcycle executing high lateral velocity shifts ahead.',
+            confidence: 0.89,
+            riskLevel: 'HIGH'
+        });
+    }
+    if (typeof updateDecisionsUI === 'function') updateDecisionsUI();
 }
 
 window.initApp = initApp;
 window.setDriveMode = setDriveMode;
-window.openDecisionLogicModal = openDecisionLogicModal;
-window.closeDecisionLogicModal = closeDecisionLogicModal;
-window.sendTrafficSignal = sendTrafficSignal;
-window.triggerManeuver = triggerManeuver;
+window.startSyntheticFeed = startSyntheticFeed;
+window.startKaggleFeed = startKaggleFeed;
+window.startWaymoFeed = startWaymoFeed;
+window.triggerEdgeCase = triggerEdgeCase;
+window.triggerAEB = triggerAEB;
+window.spawnRealisticScenario = spawnRealisticScenario;
 
 // Start app on DOM loaded
 document.addEventListener('DOMContentLoaded', initApp);
+

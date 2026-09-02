@@ -1,158 +1,102 @@
 /**
- * AV-01 Unified Telemetry & Dataset Controller
- * Handles WebSocket 10Hz stream and dynamic dataset switching between Kaggle, Waymo, and Synthetic edge-cases.
+ * AV-01 Real-Time WebSocket Telemetry Receiver
+ * Streams 10Hz authoritative backend frames into HUD speedometer, logs, state, and charts.
  */
 
-let wsSocket = null;
+class TelemetryReceiver {
+    constructor() {
+        this.ws = null;
+        this.connect();
+    }
 
-function connectTelemetryWebSocket() {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    connect() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws/telemetry`;
 
-    try {
-        wsSocket = new WebSocket(wsUrl);
+        this.ws = new WebSocket(wsUrl);
 
-        wsSocket.onopen = () => {
-            console.log('AV-01 Telemetry Stream Connected');
-            const statusBadge = document.getElementById('health-badge');
-            if (statusBadge) {
-                statusBadge.className = 'badge badge-healthy';
-                statusBadge.innerHTML = '<span class="pulse-dot"></span> SYSTEM ACTIVE · 10Hz WS';
-            }
+        this.ws.onopen = () => {
+            console.log('[Telemetry] Connected to WebSocket stream');
+            const dot = document.getElementById('system-status-dot');
+            const txt = document.getElementById('system-status-text');
+            if (dot) dot.style.background = 'var(--safety-green)';
+            if (txt) txt.innerText = 'NOMINAL';
         };
 
-        wsSocket.onmessage = (event) => {
+        this.ws.onmessage = (event) => {
             try {
-                const frame = JSON.parse(event.data);
-                processIncomingFrame(frame);
-            } catch (err) {
-                console.error('Frame parsing error:', err);
+                const data = JSON.parse(event.data);
+                this.handleTelemetryFrame(data);
+            } catch (e) {
+                console.error('[Telemetry] Parse error:', e);
             }
         };
 
-        wsSocket.onclose = () => {
-            console.warn('Telemetry Stream closed, retrying in 3s...');
-            setTimeout(connectTelemetryWebSocket, 3000);
+        this.ws.onclose = () => {
+            const dot = document.getElementById('system-status-dot');
+            const txt = document.getElementById('system-status-text');
+            if (dot) dot.style.background = 'var(--safety-red)';
+            if (txt) txt.innerText = 'DISCONNECTED';
+            setTimeout(() => this.connect(), 2000);
         };
-    } catch (e) {
-        console.error('WebSocket connection failed:', e);
-    }
-}
-
-function processIncomingFrame(frame) {
-    const state = AVState;
-    if (!frame) return;
-
-    // Ingest pipeline metrics
-    if (frame.stage_timings_ms) {
-        const stageT = frame.stage_timings_ms;
-        const salVal = document.getElementById('lat-val-sal'); if (salVal) salVal.innerText = `${(stageT.sensor_sal_ms || 2.1).toFixed(1)} / 10ms`;
-        const percVal = document.getElementById('lat-val-perc'); if (percVal) percVal.innerText = `${(stageT.perception_ms || 34.0).toFixed(1)} / 50ms`;
-        const riskVal = document.getElementById('lat-val-risk'); if (riskVal) riskVal.innerText = `${(stageT.analysis_ms || 1.8).toFixed(1)} / 10ms`;
-        const groqVal = document.getElementById('lat-val-groq'); if (groqVal) groqVal.innerText = `${(stageT.justification_ms || 412.0).toFixed(1)} / 2000ms`;
-        const totVal = document.getElementById('lat-val-total'); if (totVal) totVal.innerText = `${(stageT.total_pipeline_ms || 450.0).toFixed(1)} / 200ms`;
     }
 
-    // Ingest Guidance & Reasoning
-    if (frame.justification) {
-        state.setGuidance({
-            reason: frame.justification.explanation || state.latestGuidance.reason,
-            confidence: frame.justification.confidence || state.latestGuidance.confidence,
-            action: frame.justification.action_recommended || state.latestGuidance.action
-        });
-    }
+    handleTelemetryFrame(frame) {
+        if (!frame) return;
 
-    // Push live telemetry sample to historical trend buffers
-    state.addTelemetrySample(
-        state.egoState.speedMph,
-        state.latestGuidance.riskLevel === 'HIGH' ? 0.8 : 0.2,
-        Math.round((state.latestGuidance.confidence || 0.94) * 100)
-    );
+        // 1. Update Global AVState
+        AVState.updateFromWebSocket(frame);
 
-    // Synchronize Decisions UI & Dynamic Charts across views
-    if (typeof updateDecisionsUI === 'function') updateDecisionsUI();
-    if (typeof renderAnalyticsCharts === 'function') renderAnalyticsCharts();
-    if (typeof renderConfidenceChart === 'function') renderConfidenceChart();
-}
-
-function startWaymoFeed() {
-    AVState.datasetSource = "WAYMO OPEN DATASET (3D LiDAR)";
-    updateDatasetPill("🚗 WAYMO 3D LiDAR STREAM", "var(--tesla-cyan)");
-    fetch('/scenario/use_kaggle_hazard_stream?enable=false', { method: 'POST' }).catch(() => {});
-    
-    // Spawn Waymo specific multi-agent hazard profile
-    const state = AVState;
-    state.setGuidance({
-        action: "🚗 WAYMO 3D LIDAR ACTIVE",
-        reason: "Ingesting Waymo Open Dataset 3D point cloud & camera bounding boxes.",
-        confidence: 0.98
-    });
-}
-
-function startKaggleFeed() {
-    AVState.datasetSource = "KAGGLE DATASET (zara2099)";
-    updateDatasetPill("📊 KAGGLE TRAFFIC TELEMETRY", "var(--tesla-green)");
-    fetch('/scenario/use_kaggle_hazard_stream?enable=true', { method: 'POST' }).catch(() => {});
-
-    const state = AVState;
-    state.setGuidance({
-        action: "📊 KAGGLE DATASET REPLAY",
-        reason: "Replaying real fedesoriano density & zara2099 hazard stream telemetry.",
-        confidence: 0.95
-    });
-}
-
-function startSyntheticFeed() {
-    AVState.datasetSource = "SYNTHETIC CARLA ENGINE";
-    updateDatasetPill("⚡ SYNTHETIC CARLA STREAM", "var(--tesla-blue)");
-    fetch('/scenario/use_kaggle_hazard_stream?enable=false', { method: 'POST' }).catch(() => {});
-}
-
-function triggerRandomScenario() {
-    const scenarios = ['cyclist_overtake', 'pedestrian_crossing', 'lead_vehicle_brake'];
-    const pick = scenarios[Math.floor(Math.random() * scenarios.length)];
-    spawnRealisticScenario(pick);
-}
-
-function spawnRealisticScenario(scenarioName) {
-    const state = AVState;
-    if (scenarioName === 'cyclist_overtake') {
-        state.worldEntities.set('cyc_override', new WorldEntity('cyc_override', 'cyclist', state.egoState.worldZ + 18.0, 1.2, 12.0));
-        state.setGuidance({
-            action: "🚴 CYCLIST OVERTAKE INSTRUCTION",
-            reason: "Slow cyclist detected ahead in ego lane. Initiating safe left lane change buffer.",
-            riskLevel: "MEDIUM"
-        });
-    } else if (scenarioName === 'pedestrian_crossing') {
-        state.worldEntities.set('ped_override', new WorldEntity('ped_override', 'pedestrian', state.egoState.worldZ + 16.0, -1.0, 3.0));
-        state.setGuidance({
-            action: "🚶 CRITICAL: PEDESTRIAN CROSSING",
-            reason: "Pedestrian detected crossing in forward cone. Engaging RSS safety deceleration.",
-            riskLevel: "CRITICAL"
-        });
-    } else if (scenarioName === 'lead_vehicle_brake') {
-        if (state.worldEntities.has('veh_lead')) {
-            state.worldEntities.get('veh_lead').speedMph = 15.0;
-            state.setGuidance({
-                action: "🚨 LEAD VEHICLE HARD BRAKE",
-                reason: "Sudden deceleration detected on lead car. TACC reducing speed to maintain 2s buffer.",
-                riskLevel: "HIGH"
-            });
+        // 2. Speedometer HUD Updates
+        const speedVal = document.getElementById('hud-speed-val');
+        if (speedVal && frame.vehicle_state) {
+            const speedKm = Math.round((frame.vehicle_state.speed_mps || 14.5) * 3.6);
+            speedVal.innerText = speedKm;
         }
+
+        const targetSpeed = document.getElementById('hud-target-speed');
+        if (targetSpeed && frame.guidance) {
+            const tgtKm = Math.round((frame.guidance.target_speed_mps || 19.4) * 3.6);
+            targetSpeed.innerText = `${tgtKm} KM/H`;
+        }
+
+        // Source badge update
+        const srcBadge = document.getElementById('source-badge');
+        if (srcBadge && frame.source) {
+            srcBadge.innerText = `SOURCE: ${frame.source.toUpperCase()}`;
+        }
+
+        // 3. Dynamic Telemetry Diagnostic Logs Table
+        const logsTable = document.getElementById('logs-table-body');
+        if (logsTable && frame.guidance) {
+            const now = new Date().toLocaleTimeString();
+            const frameId = `#${frame.frame_id || Math.floor(Math.random() * 9000 + 1000)}`;
+            const src = frame.source || 'Synthetic';
+            const action = frame.guidance.action || 'MAINTAIN CRUISE';
+            const conf = `${Math.round((frame.guidance.confidence || 0.94) * 100)}%`;
+
+            const rowHtml = `
+                <tr>
+                    <td style="font-family:var(--font-mono);">${now}</td>
+                    <td style="font-family:var(--font-mono);">${frameId}</td>
+                    <td>${src}</td>
+                    <td>VEHICLE_01</td>
+                    <td style="font-family:var(--font-mono);">28.5m</td>
+                    <td style="color:var(--safety-green); font-weight:700;">${action}</td>
+                    <td style="font-family:var(--font-mono);">${conf}</td>
+                </tr>
+            `;
+
+            if (logsTable.children.length > 8) {
+                logsTable.removeChild(logsTable.lastElementChild);
+            }
+            logsTable.insertAdjacentHTML('afterbegin', rowHtml);
+        }
+
+        // 4. Update Cockpit Decisions HUD & Analytics
+        if (typeof updateDecisionsUI === 'function') updateDecisionsUI();
+        if (typeof renderAnalyticsCharts === 'function') renderAnalyticsCharts();
     }
 }
 
-function updateDatasetPill(label, color) {
-    const pill = document.getElementById('dataset-source-pill');
-    if (pill) {
-        pill.innerText = label;
-        pill.style.background = color;
-    }
-}
-
-window.connectTelemetryWebSocket = connectTelemetryWebSocket;
-window.startWaymoFeed = startWaymoFeed;
-window.startKaggleFeed = startKaggleFeed;
-window.startSyntheticFeed = startSyntheticFeed;
-window.triggerRandomScenario = triggerRandomScenario;
-window.spawnRealisticScenario = spawnRealisticScenario;
+window.telemetryReceiver = new TelemetryReceiver();

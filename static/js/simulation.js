@@ -699,5 +699,46 @@ function updateSimulationLoop(dt) {
     renderer.render(scene, camera);
 }
 
+function spawnEntity(type, dist, posX, speedMph) {
+    const egoWorldZ = AVState.egoState.worldZ;
+    const worldZ = egoWorldZ - dist;
+    const id = `${type}_${Math.floor(Math.random() * 900 + 100)}`;
+    const entity = new WorldEntity(id, type, worldZ, posX, speedMph);
+    AVState.worldEntities.set(id, entity);
+    console.log(`[Simulation] Spawned ${type} at dist ${dist}m, posX ${posX}m`);
+    return entity;
+}
+
+function resetWorldEntities(sourceType) {
+    // Clean existing 3D meshes
+    for (const [id, e] of AVState.worldEntities.entries()) {
+        if (e.mesh) scene.remove(e.mesh);
+    }
+    AVState.worldEntities.clear();
+
+    if (sourceType === 'kaggle') {
+        // Indian Traffic heterogeneity (auto-rickshaw, motorcycle, truck, pedestrian)
+        spawnEntity('car', 30.0, 0.0, 40.0);
+        spawnEntity('truck', 70.0, 3.8, 35.0);
+        spawnEntity('motorcycle', 15.0, 1.8, 55.0);
+        spawnEntity('cyclist', 18.0, 4.2, 10.0);
+        spawnEntity('pedestrian', 35.0, -4.5, 2.0);
+    } else if (sourceType === 'waymo') {
+        // Waymo multi-agent highway scenario
+        spawnEntity('car', 25.0, 0.0, 45.0);
+        spawnEntity('car', 45.0, -3.8, 50.0);
+        spawnEntity('truck', 80.0, 3.8, 40.0);
+        spawnEntity('car', -20.0, 0.0, 60.0);
+    } else {
+        // Synthetic default nominal traffic
+        spawnEntity('car', 28.5, 0.0, 42.0);
+        spawnEntity('truck', 75.0, 3.8, 38.0);
+        spawnEntity('motorcycle', 18.0, 1.8, 48.0);
+    }
+}
+
 window.initSimulationEngine = initSimulationEngine;
 window.updateSimulationLoop = updateSimulationLoop;
+window.spawnEntity = spawnEntity;
+window.resetWorldEntities = resetWorldEntities;
+
