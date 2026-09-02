@@ -158,7 +158,7 @@ class TelemetryReceiver {
         const src = frame.source || 'Simulator';
         const action = (frame.guidance.action || 'MAINTAIN CRUISE').replace(/[🚨🟢🟡🟠🔵🇮🇳]/gu, '').trim().slice(0, 30);
         const conf = `${Math.round((frame.guidance.confidence || 0.94) * 100)}%`;
-        const risk = frame.guidance.risk_level || 'LOW';
+        const risk = frame.guidance.risk_level || frame.guidance.riskLevel || 'LOW';
         const riskColor = risk === 'CRITICAL' ? 'var(--safety-red)' : risk === 'HIGH' ? '#ff7043' : risk === 'MEDIUM' ? 'var(--safety-amber)' : 'var(--safety-green)';
 
         const row = document.createElement('tr');

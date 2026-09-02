@@ -125,8 +125,18 @@ class StateManager {
     }
 
     setGuidance(guidance) {
+        const actionChanged = guidance.action && guidance.action !== this.latestGuidance.action;
         this.latestGuidance = { ...this.latestGuidance, ...guidance };
         this.notify();
+        
+        // Dynamically log significant AI decisions to the Telemetry Diagnostic Log table
+        if (actionChanged && window.telemetryReceiver && window.telemetryReceiver._appendLogRow) {
+            window.telemetryReceiver._appendLogRow({
+                frame_id: Math.floor(Math.random() * 9000 + 1000),
+                source: 'Sim Logic',
+                guidance: this.latestGuidance
+            });
+        }
     }
 
     /**
