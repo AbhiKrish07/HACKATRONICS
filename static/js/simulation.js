@@ -894,29 +894,31 @@ function resetWorldEntities(sourceType) {
     }
     AVState.worldEntities.clear();
 
+    const bd = 100.0; // Base distance for forward spawning
+
     if (sourceType === 'kaggle') {
         // Indian Traffic — dist is AHEAD of ego (+ve = in front)
-        spawnEntity('vehicle', 30.0, 0.0, 40.0);       // lead car
-        spawnEntity('truck',   70.0, 3.8, 35.0);       // slow truck ahead right
-        spawnEntity('motorcycle', 15.0, 1.8, 55.0);    // fast bike close
-        spawnEntity('cyclist', 18.0, 4.2, 10.0);       // slow cyclist right
-        spawnEntity('pedestrian', 35.0, -4.5, 2.0);    // pedestrian far left
+        spawnEntity('vehicle', bd + 30.0, 0.0, 40.0);       // lead car
+        spawnEntity('truck',   bd + 70.0, 3.8, 35.0);       // slow truck ahead right
+        spawnEntity('motorcycle', bd + 15.0, 1.8, 55.0);    // fast bike close
+        spawnEntity('cyclist', bd + 18.0, 4.2, 10.0);       // slow cyclist right
+        spawnEntity('pedestrian', bd + 35.0, -4.5, 2.0);    // pedestrian far left
         spawnEntity('vehicle', -25.0, 0.0, 50.0);      // vehicle behind
         spawnEntity('motorcycle', -15.0, 3.8, 48.0);   // bike behind right
     } else if (sourceType === 'waymo') {
         // Waymo multi-agent highway scenario
-        spawnEntity('vehicle', 25.0, 0.0, 45.0);
-        spawnEntity('vehicle', 45.0, -3.8, 50.0);
-        spawnEntity('truck',   80.0, 3.8, 40.0);
+        spawnEntity('vehicle', bd + 25.0, 0.0, 45.0);
+        spawnEntity('vehicle', bd + 45.0, -3.8, 50.0);
+        spawnEntity('truck',   bd + 80.0, 3.8, 40.0);
         spawnEntity('vehicle', -20.0, 0.0, 55.0);      // overtaking from behind
-        spawnEntity('vehicle', 60.0, 7.6, 48.0);
+        spawnEntity('vehicle', bd + 60.0, 7.6, 48.0);
     } else {
         // Synthetic default — mixed traffic
-        spawnEntity('vehicle',    28.0,  0.0, 42.0);
-        spawnEntity('truck',      75.0,  3.8, 38.0);
-        spawnEntity('motorcycle', 16.0,  1.8, 48.0);
+        spawnEntity('vehicle',    bd + 28.0,  0.0, 42.0);
+        spawnEntity('truck',      bd + 75.0,  3.8, 38.0);
+        spawnEntity('motorcycle', bd + 16.0,  1.8, 48.0);
         spawnEntity('vehicle',   -28.0,  0.0, 52.0);   // behind, overtaking
-        spawnEntity('cyclist',    22.0,  5.2,  8.0);
+        spawnEntity('cyclist',    bd + 22.0,  5.2,  8.0);
     }
 }
 
@@ -1071,11 +1073,17 @@ class TrafficSignal {
 
         // Auto-brake ego when red and signal is close ahead
         const dist = -(this.worldZ - egoWorldZ); // negative = ahead
-        if (this.state === 'red' && dist > -30 && dist < -2) {
-            // Gradually slow ego to stop
+        if (this.state === 'red' && dist > -120 && dist < -2) {
             const ego = AVState.egoState;
-            const brakeFactor = Math.max(0, Math.min(1, (-dist - 2) / 20));
-            ego.speedMph = Math.max(0, ego.speedMph - brakeFactor * 8 * dt);
+            ego.aebActive = true;
+            
+            // Smooth target-based deceleration:
+            // At -120m, target speed is cruise. At -5m, target speed is 0.
+            const targetMph = Math.max(0, (Math.abs(dist) - 5) * 0.6);
+            if (ego.speedMph > targetMph) {
+                // Apply brake pressure to reach the target speed profile
+                ego.speedMph = Math.max(0, ego.speedMph - 40.0 * dt);
+            }
             ego.speedMps = (ego.speedMph * 1.609) / 3.6;
         }
     }
