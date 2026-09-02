@@ -568,16 +568,17 @@ function updateSimulationLoop(dt) {
         return { action, reason, riskLevel, confidence: confidence || 0.94 };
     }
 
-    // 360° EMERGENCY BRAKE — triggers in any drive mode (manual OR autopilot)
-    // Engage AEB only if an entity is dangerously close (< 6.0m front, < 3.0m rear/sides)
-    const aebFront   = fDist      < 6.0;
-    const aebRear    = rearDist   < 3.0;
-    const aebLeft    = lDist      < 1.8;
-    const aebRight   = rDist      < 1.8;
+    // 360° TIGHT GAP INDIAN TRAFFIC SAFETY NET
+    // In Indian traffic conditions (dense auto-rickshaw, motorcycle, pedestrian streams), 
+    // close clearance (3.0m - 6.0m) is nominal. Emergency AEB triggers ONLY at < 2.8m.
+    const aebFront   = fDist      < 2.8;
+    const aebRear    = rearDist   < 1.8;
+    const aebLeft    = lDist      < 0.9;
+    const aebRight   = rDist      < 0.9;
     const aebAny     = aebFront || aebRear || aebLeft || aebRight;
 
     if (aebAny && closestAnyDir && !isPhysicalImpact) {
-        // Hard-brake from any direction
+        // Critical emergency brake check (< 2.8m collision risk)
         ego.speedMph = Math.max(0, ego.speedMph - 90.0 * dt);
         ego.speedMps = (ego.speedMph * 1.609) / 3.6;
         ego.aebActive = true;
@@ -588,31 +589,20 @@ function updateSimulationLoop(dt) {
         const dirWarn = aebFront ? '⬆ Front' : aebRear ? '⬇ Rear' : aebLeft ? '◀ Left' : '▶ Right';
 
         AVState.setGuidance(buildGuidance(
-            `🚨 CRITICAL BRAKE: ${typIcon} ${typ.toUpperCase()} AT ${dist}m [${dirWarn}]`,
-            `AEB engaged. 360° radar detected ${typ} in ${dirWarn} zone at ${dist}m. Safety net active.`,
+            `🚨 CRITICAL BRAKE: ${typIcon} ${typ.toUpperCase()} AT ${dist}m`,
+            `AEB engaged. Immediate collision hazard detected in ${dirWarn} zone at ${dist}m. Safety net active.`,
             'CRITICAL',
             0.98
         ));
     } else if (ego.isAutoPilot) {
-        if (closestObs && fDist < 8.0) {
-            // Imminent Danger (< 8m) — Execute 360° AEB Hard Stop
-            ego.aebActive = true;
-            ego.speedMph = Math.max(0.0, ego.speedMph - 50.0 * dt);
-            ego.speedMps = (ego.speedMph * 1.609) / 3.6;
-            AVState.setGuidance(buildGuidance(
-                '🚨 AEB HARD STOP: OBSTACLE < 8m',
-                `Critical emergency brake check. ${closestObs.type.toUpperCase()} at ${fDist.toFixed(1)}m. Hard braking active.`,
-                'CRITICAL',
-                0.99
-            ));
-        } else if (closestObs && fDist < 15.0) {
-            // Lead vehicle ahead (< 15m) — Execute Safe Overtake or Smooth Speed Match
+        if (closestObs && fDist < 4.5) {
+            // Very close lead obstacle (< 4.5m) — Execute emergency overtake or speed match
             let leftClear = true, rightClear = true;
             for (const [id, e] of AVState.worldEntities.entries()) {
                 const ed = e.getDistanceToEgo();
-                if (ed > -10 && ed < 25) {
-                    if (e.posX < ego.x - 1.5) leftClear = false;
-                    if (e.posX > ego.x + 1.5) rightClear = false;
+                if (ed > -5 && ed < 15) {
+                    if (e.posX < ego.x - 1.2) leftClear = false;
+                    if (e.posX > ego.x + 1.2) rightClear = false;
                 }
             }
 
@@ -621,41 +611,41 @@ function updateSimulationLoop(dt) {
             else if (rightClear && ego.x < 3.8) laneDir = 1;
 
             if (laneDir !== 0) {
-                // Execute Smooth Overtake Pass
+                // Execute Smooth Tight Gap Overtake Pass
                 ego.aebActive = false;
-                ego.x += laneDir * 3.5 * dt;
+                ego.x += laneDir * 4.2 * dt;
                 ego.x = Math.max(-5.5, Math.min(5.5, ego.x));
-                ego.yaw = laneDir * -0.06;
+                ego.yaw = laneDir * -0.07;
                 AVState.setGuidance(buildGuidance(
-                    `🔵 EXECUTING SAFE OVERTAKE`,
-                    `Passing slower ${closestObs.type} at ${fDist.toFixed(0)}m. Lane change initiated smoothly.`,
+                    `🇮🇳 TIGHT GAP OVERTAKE (${fDist.toFixed(1)}m)`,
+                    `Navigating dense Indian traffic gap around ${closestObs.type} at ${fDist.toFixed(1)}m. Overtake active.`,
                     'MEDIUM',
                     0.92
                 ));
             } else {
-                // Match lead vehicle speed with comfortable distance
+                // Match lead vehicle speed with tight gap
                 ego.aebActive = false;
-                ego.speedMph = Math.max(closestObs.speedMph, ego.speedMph - 10.0 * dt);
+                ego.speedMph = Math.max(closestObs.speedMph, ego.speedMph - 6.0 * dt);
                 ego.speedMps = (ego.speedMph * 1.609) / 3.6;
                 AVState.setGuidance(buildGuidance(
-                    `🟡 TACC: MATCHING SPEED AT ${closestObs.speedMph.toFixed(0)} KM/H`,
-                    `Following ${closestObs.type} at ${fDist.toFixed(0)}m. Maintaining safe headway clearance.`,
+                    `🟡 TIGHT DENSE TRAFFIC FOLLOW · ${closestObs.speedMph.toFixed(0)} KM/H`,
+                    `Following ${closestObs.type} at ${fDist.toFixed(1)}m clearance. Indian traffic gap nominal.`,
                     'MEDIUM',
                     0.89
                 ));
             }
         } else {
-            // Path Clear (>= 15m) — Smooth Cruise Control (60–80 km/h)
+            // Path Clear (>= 4.5m) — Smooth High-Speed Cruise (70–80 km/h)
             ego.aebActive = false;
             if (ego.speedMph < ego.targetCruiseMph) {
-                ego.speedMph = Math.min(ego.targetCruiseMph, ego.speedMph + 12.0 * dt);
+                ego.speedMph = Math.min(ego.targetCruiseMph, ego.speedMph + 15.0 * dt);
                 ego.speedMps = (ego.speedMph * 1.609) / 3.6;
             }
             ego.yaw += (0 - ego.yaw) * 4.0 * dt;
 
             AVState.setGuidance(buildGuidance(
-                '🟢 PATH CLEAR · CRUISE ACTIVE',
-                `Forward cone clear. Ego cruising smoothly at ${ego.speedMph.toFixed(0)} km/h. Centerline trajectory maintained.`,
+                '🟢 INDIAN TRAFFIC CRUISE · OPTIMAL GAP',
+                `Path clear ahead. Ego cruising smoothly at ${ego.speedMph.toFixed(0)} km/h. Dense traffic navigation nominal.`,
                 'LOW',
                 0.96
             ));
