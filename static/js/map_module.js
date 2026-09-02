@@ -173,27 +173,29 @@
             console.error('[MapModule] MapLibre error:', e);
         });
 
-        // Start update loop for this map
-        function mapUpdateLoop() {
-            updateMapVehicle();
-            requestAnimationFrame(mapUpdateLoop);
-        }
-        requestAnimationFrame(mapUpdateLoop);
+        // Use setInterval at 10Hz — completely decoupled from Three.js 60fps rAF
+        setInterval(updateMapVehicle, 100);
     }
+
 
     function updateMapVehicle() {
         if (!mapInstance || !vehicleMarker) return;
 
+        const dt = 0.1; // fixed 100ms interval
         const ego = AVState.egoState;
 
-        // Sync heading from ego yaw
-        mapVehicle.heading = (ego.yaw * 180 / Math.PI + 360) % 360;
-        mapVehicle.speed = ego.speedMph * 1.609; // km/h
+        // Heading: ego.yaw is a small radian value (steering angle, not global bearing).
+        // Accumulate it as a slow-turning bearing. Start facing north (heading=0).
+        mapVehicle.heading = (mapVehicle.heading + ego.yaw * 25 * dt) % 360;
+        if (mapVehicle.heading < 0) mapVehicle.heading += 360;
 
-        // Move vehicle position based on ego speedMps and heading
-        const dt = 1 / 60;
+        mapVehicle.speed = ego.speedMph * 1.609; // km/h display
+
+        // Map movement: use a scaled-down speed to match real-world distances.
+        // 3D sim runs at exaggerated scale; realistic street speed ~50 km/h = 13.9 m/s on map
+        const mapSpeedMps = Math.min(ego.speedMps, 18) * 0.15; // scale down for map realism
         const headRad = mapVehicle.heading * Math.PI / 180;
-        const distM = ego.speedMps * dt;
+        const distM = mapSpeedMps * dt;
         const latPerDegLon = 111320 * Math.cos(mapVehicle.latitude * Math.PI / 180);
 
         mapVehicle.latitude += (Math.cos(headRad) * distM) / 111320;
@@ -202,12 +204,14 @@
         vehicleMarker.setLngLat([mapVehicle.longitude, mapVehicle.latitude]);
         vehicleMarker.setRotation(mapVehicle.heading);
 
-        // Follow vehicle smoothly
-        mapInstance.jumpTo({
+        // Smooth camera follow — easeTo with duration=0 is non-janky unlike jumpTo
+        mapInstance.easeTo({
             center: [mapVehicle.longitude, mapVehicle.latitude],
             bearing: mapVehicle.heading,
             pitch: 65,
-            zoom: 17.5
+            zoom: 17.5,
+            duration: 0,
+            easing: (t) => t
         });
 
         // Update speed display

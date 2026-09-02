@@ -222,6 +222,11 @@ let frontNode, leftNode, rightNode, rearNode;
 // 3D Sensor Proximity Semi-Circle Arcs (color-coded by distance)
 let arcFront, arcLeft, arcRight, arcRear;
 
+// 3D Ground-Plane Detection Rings (50m perimeter, 30m caution, 15m critical)
+let ring50m, ring30m, ring15m, radarSweepLine;
+let sweepAngle = 0;
+
+
 function buildArc(startAngle, endAngle, radius, color) {
     const pts = [];
     const segs = 32;
@@ -231,6 +236,22 @@ function buildArc(startAngle, endAngle, radius, color) {
     }
     const geo = new THREE.BufferGeometry().setFromPoints(pts);
     const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.75, linewidth: 2 });
+    return new THREE.Line(geo, mat);
+}
+
+/**
+ * Build a full 360° ground-plane ring at given radius.
+ * y = 0.03 so it lies flat on road surface.
+ */
+function buildRing(radius, color, opacity, segments) {
+    const pts = [];
+    const segs = segments || 80;
+    for (let i = 0; i <= segs; i++) {
+        const a = (i / segs) * Math.PI * 2;
+        pts.push(new THREE.Vector3(Math.sin(a) * radius, 0.03, Math.cos(a) * radius));
+    }
+    const geo = new THREE.BufferGeometry().setFromPoints(pts);
+    const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity, linewidth: 2 });
     return new THREE.Line(geo, mat);
 }
 
@@ -363,6 +384,26 @@ function initSimulationEngine() {
     arcRight.rotation.y = Math.PI * 0.5;
     arcRight.position.x = 0.9;
     egoCarGroup.add(arcRight);
+
+    // ── Ground-Plane Concentric Detection Rings (50m/30m/15m) ──────────
+    // Note: 3D sim world-units ≈ real meters for nearby entities.
+    // We draw rings in actual world-unit scale centered on ego car group.
+    ring50m = buildRing(50, 0x00d66f, 0.18, 120); // green — outer perimeter
+    ring30m = buildRing(30, 0xffb020, 0.28, 90);  // amber — caution zone
+    ring15m = buildRing(15, 0xe82127, 0.40, 60);  // red — critical zone
+    scene.add(ring50m);
+    scene.add(ring30m);
+    scene.add(ring15m);
+
+    // Radar sweep line (rotates 360° to simulate LiDAR scan)
+    const sweepGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, 0.04, 0),
+        new THREE.Vector3(0, 0.04, -50)  // points forward (-Z = ahead)
+    ]);
+    radarSweepLine = new THREE.Line(sweepGeo, new THREE.LineBasicMaterial({
+        color: 0x00f0ff, transparent: true, opacity: 0.55, linewidth: 1
+    }));
+    scene.add(radarSweepLine);
 
     scene.add(egoCarGroup);
 
@@ -644,6 +685,40 @@ function updateSimulationLoop(dt) {
         const rc2 = rDist < 5 ? 0xff2244 : rDist < 15 ? 0xffb020 : 0x00d66f;
         arcRight.material.color.setHex(rc2);
         arcRight.material.opacity = rDist < 15 ? 0.95 : 0.55;
+    }
+
+    // ── Concentric Ground Rings — follow ego car, pulse based on proximity ──
+    const egoX = 0; // rings are in world space, centered at ego car XZ
+    const egoZ = 0;
+    if (ring15m && ring30m && ring50m) {
+        // Position rings at ego car world position (rings are in scene world space, not ego group)
+        ring15m.position.set(egoCarGroup.position.x, 0.03, egoCarGroup.position.z);
+        ring30m.position.set(egoCarGroup.position.x, 0.03, egoCarGroup.position.z);
+        ring50m.position.set(egoCarGroup.position.x, 0.03, egoCarGroup.position.z);
+
+        const t = performance.now() * 0.001;
+        // Pulse 15m ring red when anything is within 15m
+        const inCrit = fDist < 15 || lDist < 8 || rDist < 8;
+        ring15m.material.color.setHex(inCrit ? 0xff2244 : 0xe82127);
+        ring15m.material.opacity = inCrit ? 0.5 + 0.35 * Math.sin(t * 6.0) : 0.22;
+
+        // Pulse 30m ring amber when anything is within 30m
+        const inCaut = fDist < 30 || lDist < 20 || rDist < 20;
+        ring30m.material.color.setHex(inCaut ? 0xffb020 : 0xff8c00);
+        ring30m.material.opacity = inCaut ? 0.35 + 0.2 * Math.sin(t * 3.0) : 0.16;
+
+        // Outer 50m ring — steady green, subtle pulse
+        ring50m.material.opacity = 0.10 + 0.06 * Math.sin(t * 1.2);
+    }
+
+    // ── Radar Sweep Line — rotates 360° continuously at 1 revolution / 2s ──
+    if (radarSweepLine) {
+        sweepAngle -= dt * Math.PI; // 0.5 rev/s → 1 full rev every 2s
+        radarSweepLine.position.set(egoCarGroup.position.x, 0.04, egoCarGroup.position.z);
+        radarSweepLine.rotation.y = sweepAngle;
+        // Fade sweep line: highlight when it sweeps past an entity direction
+        const sweepNorm = ((sweepAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+        radarSweepLine.material.opacity = 0.35 + 0.3 * Math.sin(sweepNorm * 2);
     }
 
     // Helper: rich guidance payload matching evidence-grounded UI card
