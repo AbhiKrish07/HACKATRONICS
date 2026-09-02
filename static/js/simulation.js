@@ -1081,14 +1081,7 @@ class TrafficSignal {
             -(this.worldZ - egoWorldZ)
         );
 
-        // Cycle state
-        this.stateTimer += dt;
-        const dur = this.cycleTimes[this.state];
-        if (this.stateTimer >= dur) {
-            this.stateTimer = 0;
-            const next = { green: 'amber', amber: 'red', red: 'green' };
-            this.setState(next[this.state]);
-        }
+        // State is now manually controlled by the user via CYCLE button
 
         // Auto-brake ego when red and signal is close ahead
         const dist = -(this.worldZ - egoWorldZ); // negative = ahead
@@ -1183,15 +1176,26 @@ function spawnTrafficElement(type) {
     switch (type) {
         case 'signal': {
             // Place traffic signal 120m ahead (approx 4 seconds of driving)
-            const sig = new TrafficSignal(ego.worldZ + 120.0, 0.0);
+            const sigZ = ego.worldZ + 120.0;
+            const sig = new TrafficSignal(sigZ, 0.0);
             sig.setState('red'); // start red for drama
             trafficSignals.push(sig);
+            
+            // Spawn a crowded intersection (stopped/slow vehicles waiting for green)
+            spawnEntity('vehicle', 115.0, 0.0, 0.0);
+            spawnEntity('vehicle', 110.0, -3.8, 0.0);
+            spawnEntity('truck',   112.0, 3.8, 0.0);
+            spawnEntity('motorcycle', 117.0, 1.8, 0.0);
+            spawnEntity('vehicle', 105.0, 0.0, 5.0); // pulling up slowly
+            spawnEntity('vehicle', 102.0, -3.8, 10.0); // pulling up
+            spawnEntity('motorcycle', 108.0, 3.8, 15.0); // pulling up
+
             AVState.setGuidance({
                 action: '🚦 STOP: Red Signal ahead at 120m',
                 reason: 'Traffic signal detected in path. AEB ready. Decelerating to halt.',
                 riskLevel: 'HIGH', confidence: 0.99
             });
-            showSpawnToast('🚦 Traffic Signal Spawned — 120m ahead');
+            showSpawnToast('🚦 Traffic Signal & Congestion Spawned — 120m ahead');
             break;
         }
         case 'pedestrians': {
@@ -1247,9 +1251,30 @@ function spawnTrafficElement(type) {
             break;
         }
         case 'green_signal': {
-            // Set all existing signals to green
-            trafficSignals.forEach(s => s.setState('green'));
-            showSpawnToast('🟢 All signals set to GREEN');
+            // Cycle all existing signals manually
+            let newState = 'green';
+            trafficSignals.forEach(s => {
+                if (s.state === 'red') {
+                    s.setState('amber');
+                    newState = 'amber';
+                } else if (s.state === 'amber') {
+                    s.setState('green');
+                    newState = 'green';
+                } else {
+                    s.setState('red');
+                    newState = 'red';
+                }
+            });
+            
+            // Make any stopped traffic start moving again if green!
+            if (newState === 'green') {
+                for (const [id, e] of AVState.worldEntities.entries()) {
+                    if (e.speedMph < 5.0) {
+                        e.speedMph = 25.0 + Math.random() * 20.0; // accelerate to 25-45 mph
+                    }
+                }
+            }
+            showSpawnToast('🚦 Signals manually cycled to ' + newState.toUpperCase());
             break;
         }
         case 'clear_traffic': {
