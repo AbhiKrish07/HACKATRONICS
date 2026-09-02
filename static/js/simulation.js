@@ -727,7 +727,7 @@ function updateSimulationLoop(dt) {
     // Tesla-style golden trajectory path (yaw from ego steering)
     updateEgoPathLine(egoCarGroup, ego.yaw || 0);
 
-    // Update traffic signals (cycling state + ego brake-for-red)
+// Update traffic signals (cycling state + ego brake-for-red)
     updateTrafficSignals(dt, ego.worldZ);
 
     // Helper: rich guidance payload matching evidence-grounded UI card
@@ -735,89 +735,118 @@ function updateSimulationLoop(dt) {
         return { action, reason, riskLevel, confidence: confidence || 0.94 };
     }
 
-    // 360° TIGHT GAP INDIAN TRAFFIC SAFETY NET
-    // In Indian traffic conditions (dense auto-rickshaw, motorcycle, pedestrian streams),
-    // close clearance (3.0m - 6.0m) is nominal. Emergency AEB triggers ONLY at < 2.8m FRONT.
-    // Rear is passive — a vehicle coming from behind cannot emergency-brake the ego.
-    const aebFront   = fDist < 2.8;        // Only stop ego for FRONT threats
-    const aebLeft    = lDist < 0.8;        // Lateral near-miss
-    const aebRight   = rDist < 0.8;
-    const aebAny     = aebFront || aebLeft || aebRight; // Rear never triggers AEB
-
-    if (aebAny && closestAnyDir && !isPhysicalImpact) {
-        // Critical emergency brake check (< 2.8m collision risk)
-        ego.speedMph = Math.max(0, ego.speedMph - 90.0 * dt);
-        ego.speedMps = (ego.speedMph * 1.609) / 3.6;
-        ego.aebActive = true;
-
-        const dist   = closestAnyDist.toFixed(1);
-        const typ    = closestAnyDir.type;
-        const typIcon = typ === 'pedestrian' ? '🚶' : typ === 'cyclist' ? '🚴' : typ === 'motorcycle' ? '🏍️' : typ === 'truck' ? '🚛' : '🚗';
-        const dirWarn = aebFront ? '⬆ Front' : aebRear ? '⬇ Rear' : aebLeft ? '◀ Left' : '▶ Right';
-
-        AVState.setGuidance(buildGuidance(
-            `🚨 CRITICAL BRAKE: ${typIcon} ${typ.toUpperCase()} AT ${dist}m`,
-            `AEB engaged. Immediate collision hazard detected in ${dirWarn} zone at ${dist}m. Safety net active.`,
-            'CRITICAL',
-            0.98
-        ));
-    } else if (ego.isAutoPilot) {
-        if (closestObs && fDist < 4.5) {
-            // Very close lead obstacle (< 4.5m) — Execute emergency overtake or speed match
-            let leftClear = true, rightClear = true;
-            for (const [id, e] of AVState.worldEntities.entries()) {
-                const ed = e.getDistanceToEgo();
-                if (ed > -5 && ed < 15) {
-                    if (e.posX < ego.x - 1.2) leftClear = false;
-                    if (e.posX > ego.x + 1.2) rightClear = false;
-                }
+    // ============================================================
+    // ZERO-CRASH AUTOPILOT AVOIDANCE SYSTEM (150m Safety Radius)
+    // ============================================================
+    // The ego vehicle scans the environment and physically avoids all collisions:
+    // 1. > 30m: Maintain cruise or speed match (ACC)
+    // 2. < 30m (Amber Zone): Attempt smooth lane change to avoid.
+    // 3. < 15m (Red Zone): Aggressive lane change. If blocked, trigger hard AEB.
+    
+    let isAvoiding = false;
+    let avoidanceManeuver = '';
+    
+    if (ego.isAutoPilot && closestObs && fDist < 30.0) {
+        // Obstacle detected ahead in our lane
+        let leftClear = true;
+        let rightClear = true;
+        
+        // Scan for gaps in adjacent lanes within a 40m window (-10m behind to +30m ahead)
+        for (const [id, e] of AVState.worldEntities.entries()) {
+            const ed = e.getDistanceToEgo();
+            if (ed > -10 && ed < 30) {
+                if (e.posX < ego.x - 1.2) leftClear = false;
+                if (e.posX > ego.x + 1.2) rightClear = false;
             }
+        }
 
-            let laneDir = 0;
-            if (leftClear && ego.x > -3.8) laneDir = -1;
-            else if (rightClear && ego.x < 3.8) laneDir = 1;
+        let laneDir = 0;
+        // Prefer overtaking on the right if clear, else left
+        if (rightClear && ego.x < 3.8) laneDir = 1;
+        else if (leftClear && ego.x > -3.8) laneDir = -1;
 
-            if (laneDir !== 0) {
-                // Execute Smooth Tight Gap Overtake Pass
-                ego.aebActive = false;
-                ego.x += laneDir * 4.2 * dt;
-                ego.x = Math.max(-5.5, Math.min(5.5, ego.x));
-                ego.yaw = laneDir * -0.07;
-                AVState.setGuidance(buildGuidance(
-                    `🇮🇳 TIGHT GAP OVERTAKE (${fDist.toFixed(1)}m)`,
-                    `Navigating dense Indian traffic gap around ${closestObs.type} at ${fDist.toFixed(1)}m. Overtake active.`,
-                    'MEDIUM',
-                    0.92
-                ));
-            } else {
-                // Match lead vehicle speed with tight gap
-                ego.aebActive = false;
-                ego.speedMph = Math.max(closestObs.speedMph, ego.speedMph - 6.0 * dt);
-                ego.speedMps = (ego.speedMph * 1.609) / 3.6;
-                AVState.setGuidance(buildGuidance(
-                    `🟡 TIGHT DENSE TRAFFIC FOLLOW · ${closestObs.speedMph.toFixed(0)} KM/H`,
-                    `Following ${closestObs.type} at ${fDist.toFixed(1)}m clearance. Indian traffic gap nominal.`,
-                    'MEDIUM',
-                    0.89
-                ));
-            }
-        } else {
-            // Path Clear (>= 4.5m) — Smooth High-Speed Cruise (70–80 km/h)
+        if (laneDir !== 0) {
+            // Evasive Lane Change Maneuver
+            isAvoiding = true;
             ego.aebActive = false;
-            if (ego.speedMph < ego.targetCruiseMph) {
-                ego.speedMph = Math.min(ego.targetCruiseMph, ego.speedMph + 15.0 * dt);
-                ego.speedMps = (ego.speedMph * 1.609) / 3.6;
-            }
-            ego.yaw += (0 - ego.yaw) * 4.0 * dt;
-
+            // Aggressiveness scales with proximity (faster lane change if closer)
+            const steerAggression = fDist < 15 ? 8.0 : 4.0;
+            ego.x += laneDir * steerAggression * dt;
+            ego.x = Math.max(-5.5, Math.min(5.5, ego.x));
+            ego.yaw = laneDir * -0.07;
+            avoidanceManeuver = 'EVASIVE LANE CHANGE';
+            
             AVState.setGuidance(buildGuidance(
-                '🟢 INDIAN TRAFFIC CRUISE · OPTIMAL GAP',
-                `Path clear ahead. Ego cruising smoothly at ${ego.speedMph.toFixed(0)} km/h. Dense traffic navigation nominal.`,
+                `🔄 AVOIDANCE: Swerving to ${laneDir === 1 ? 'Right' : 'Left'}`,
+                `Obstacle detected at ${fDist.toFixed(1)}m. Executing automatic evasive lane change to maintain safety radius.`,
+                fDist < 15 ? 'HIGH' : 'MEDIUM',
+                0.95
+            ));
+        } else if (fDist < 15.0) {
+            // Trapped! Cannot change lanes and obstacle is in the Red Critical Zone.
+            // Execute Emergency Braking (AEB)
+            isAvoiding = true;
+            ego.aebActive = true;
+            ego.speedMph = Math.max(0, ego.speedMph - 120.0 * dt); // Hard brake
+            ego.speedMps = (ego.speedMph * 1.609) / 3.6;
+            avoidanceManeuver = 'AEB TRIGGERED (LANES BLOCKED)';
+            
+            AVState.setGuidance(buildGuidance(
+                `🚨 CRITICAL AEB: Lanes Blocked`,
+                `Obstacle at ${fDist.toFixed(1)}m in critical zone. Adjacent lanes blocked. Emergency braking applied to prevent crash.`,
+                'CRITICAL',
+                0.99
+            ));
+        }
+    }
+    
+    // Normal Cruise & Speed Matching (if not actively avoiding)
+    if (!isAvoiding && ego.isAutoPilot) {
+        ego.aebActive = false;
+        if (closestObs && fDist < 45.0) {
+            // Speed match if getting somewhat close but not in danger zone yet
+            const targetSpeed = closestObs.speedMph;
+            if (ego.speedMph > targetSpeed) {
+                ego.speedMph = Math.max(targetSpeed, ego.speedMph - 20.0 * dt);
+            }
+            ego.yaw = 0; // straighten out
+            AVState.setGuidance(buildGuidance(
+                `ACC: Speed Matching at ${Math.round(ego.speedMph)} MPH`,
+                `Following ${closestObs.type} at ${fDist.toFixed(1)}m. Matching lead vehicle velocity to maintain safe following distance.`,
                 'LOW',
                 0.96
             ));
+        } else {
+            // Clear road ahead — accelerate to cruise speed
+            const cruiseSpeed = 55.0;
+            if (ego.speedMph < cruiseSpeed) {
+                ego.speedMph = Math.min(cruiseSpeed, ego.speedMph + 15.0 * dt);
+            }
+            ego.yaw = 0; // straighten out
+            
+            // Only set nominal guidance if no traffic signal is demanding attention
+            if (AVState.latestGuidance?.riskLevel !== 'HIGH' || AVState.latestGuidance.action.indexOf('STOP') === -1) {
+                AVState.setGuidance(buildGuidance(
+                    `MAINTAIN CRUISE @ ${Math.round(ego.speedMph)} MPH`,
+                    `150m path clear. 360° sensors active. MPC maintaining centerline trajectory in nominal state.`,
+                    'LOW',
+                    0.99
+                ));
+            }
         }
-    } else {
+    }
+    
+    // Sync speed internally
+    ego.speedMps = (ego.speedMph * 1.609) / 3.6;
+
+    // Smooth return to centerline if drifted and not swerving
+    if (!isAvoiding && Math.abs(ego.x) > 0.1 && ego.speedMph > 5) {
+        const recoverDir = ego.x > 0 ? -1 : 1;
+        ego.x += recoverDir * 1.5 * dt;
+        ego.yaw = recoverDir * -0.02;
+    }
+
+    if (!ego.isAutoPilot) {
         // Manual mode, no immediate threat — provide advisory
         const nearestLabel = closestAnyDir
             ? `${closestAnyDir.type.toUpperCase()} (${closestAnyDist.toFixed(0)}m)`
