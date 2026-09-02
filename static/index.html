@@ -3,12 +3,228 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AV-01 — Intelligent Navigation & Decision-Support System</title>
+    <title>AV-01 — Intelligent Navigation &amp; Decision-Support System</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
     <link rel="stylesheet" href="/static/style.css">
+
+    <style>
+        /* ── Decision Panel ────────────────────────────── */
+        .decision-live-panel {
+            width: 280px;
+            min-width: 260px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow-y: auto;
+            padding-right: 2px;
+        }
+        .dec-card {
+            background: var(--bg-cockpit, #0d0f14);
+            border: 1px solid var(--border-subtle, #1e2332);
+            border-radius: 10px;
+            padding: 12px;
+        }
+        .dec-card-header {
+            font-size: 0.62rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            color: var(--text-subtle, #6b7280);
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .dec-action-main {
+            font-size: 0.88rem;
+            font-weight: 800;
+            color: var(--safety-green, #10b981);
+            line-height: 1.35;
+            margin-bottom: 6px;
+        }
+        .dec-action-main.risk-critical { color: var(--safety-red, #e82127); }
+        .dec-action-main.risk-high { color: #ff7043; }
+        .dec-action-main.risk-medium { color: var(--safety-amber, #ffb020); }
+
+        .dec-meta-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .dec-meta-pill {
+            flex: 1;
+            background: #0a0c11;
+            border: 1px solid var(--border-subtle, #1e2332);
+            border-radius: 6px;
+            padding: 5px 8px;
+            font-size: 0.58rem;
+            font-family: var(--font-mono, monospace);
+        }
+        .dec-meta-pill span:first-child {
+            display: block;
+            color: var(--text-subtle, #6b7280);
+            margin-bottom: 2px;
+        }
+        .dec-meta-pill span:last-child {
+            color: #fff;
+            font-weight: 700;
+        }
+        .dec-evidence-box {
+            background: rgba(2, 136, 209, 0.06);
+            border-left: 2px solid #0288d1;
+            border-radius: 0 6px 6px 0;
+            padding: 7px 9px;
+            font-size: 0.68rem;
+            color: var(--text-dim, #94a3b8);
+            line-height: 1.5;
+            margin-bottom: 8px;
+        }
+        .dec-evidence-label {
+            font-size: 0.58rem;
+            font-weight: 700;
+            color: #0288d1;
+            letter-spacing: 0.08em;
+            margin-bottom: 3px;
+        }
+        .dec-groq-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: linear-gradient(90deg, #e85d04, #f48c06);
+            color: #fff;
+            font-size: 0.55rem;
+            font-weight: 800;
+            padding: 2px 7px;
+            border-radius: 20px;
+            letter-spacing: 0.06em;
+        }
+        .dec-hazard-list { display: flex; flex-direction: column; gap: 5px; }
+        .dec-hazard-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #0a0c11;
+            border: 1px solid var(--border-subtle, #1e2332);
+            border-radius: 6px;
+            padding: 5px 8px;
+            font-size: 0.65rem;
+        }
+        .dec-hazard-left { display: flex; flex-direction: column; gap: 1px; }
+        .dec-hazard-id { font-weight: 700; color: #fff; font-family: var(--font-mono, monospace); font-size: 0.62rem; }
+        .dec-hazard-sub { color: var(--text-subtle, #6b7280); font-size: 0.56rem; }
+        .dec-hazard-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+        .dec-risk-badge {
+            font-size: 0.52rem; font-weight: 800; padding: 1px 6px; border-radius: 20px;
+        }
+        .risk-CRITICAL { background: rgba(232,33,39,0.2); color: var(--safety-red, #e82127); border: 1px solid rgba(232,33,39,0.4); }
+        .risk-HIGH { background: rgba(255,112,67,0.15); color: #ff7043; border: 1px solid rgba(255,112,67,0.3); }
+        .risk-MEDIUM { background: rgba(255,176,32,0.12); color: var(--safety-amber, #ffb020); border: 1px solid rgba(255,176,32,0.25); }
+        .risk-LOW, .risk-NOMINAL { background: rgba(16,185,129,0.12); color: var(--safety-green, #10b981); border: 1px solid rgba(16,185,129,0.25); }
+        .dec-hazard-dist { font-family: var(--font-mono, monospace); color: #9ca3af; font-size: 0.58rem; }
+
+        /* ── Camera Page ───────────────────────────────── */
+        .cam-page-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 12px;
+            height: 100%;
+        }
+        .cam-main-feed {
+            position: relative;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .cam-main-label {
+            position: absolute;
+            top: 10px; left: 12px;
+            font-size: 0.6rem;
+            font-weight: 700;
+            font-family: var(--font-mono, monospace);
+            color: rgba(255,255,255,0.7);
+            letter-spacing: 0.1em;
+            z-index: 2;
+            pointer-events: none;
+        }
+        .cam-main-badge {
+            position: absolute;
+            top: 10px; right: 12px;
+            background: rgba(0,0,0,0.7);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 0.58rem;
+            font-family: var(--font-mono, monospace);
+            color: rgba(255,255,255,0.5);
+            z-index: 2;
+        }
+        .cam-side-col { display: flex; flex-direction: column; gap: 10px; }
+        .cam-side-feed {
+            flex: 1;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+        .cam-side-label {
+            position: absolute;
+            bottom: 6px; left: 8px;
+            font-size: 0.55rem;
+            font-family: var(--font-mono, monospace);
+            font-weight: 700;
+            color: rgba(255,255,255,0.5);
+            letter-spacing: 0.08em;
+            z-index: 2;
+        }
+
+        /* ── Map Page ───────────────────────────────────── */
+        #maplibre-container {
+            width: 100%;
+            height: 100%;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        .map-hud-overlay {
+            position: absolute;
+            top: 12px; left: 12px;
+            z-index: 10;
+            background: rgba(8,10,18,0.88);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px;
+            padding: 10px 14px;
+            backdrop-filter: blur(8px);
+            min-width: 160px;
+        }
+        .map-hud-title {
+            font-size: 0.6rem;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            color: var(--safety-green, #10b981);
+            margin-bottom: 6px;
+        }
+        .map-hud-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.62rem;
+            margin-bottom: 3px;
+        }
+        .map-hud-label { color: rgba(255,255,255,0.4); }
+        .map-hud-val { color: #fff; font-family: monospace; font-weight: 600; }
+
+        /* Dashboard layout override - 3 columns when decision panel shown */
+        .dashboard-split-layout {
+            display: grid;
+            grid-template-columns: 1fr 240px 280px;
+            gap: 10px;
+            height: 100%;
+            min-height: 0;
+        }
+    </style>
 </head>
 <body>
     <div class="app-shell">
@@ -27,37 +243,33 @@
                     <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
                     <span>01 Dashboard</span>
                 </a>
-                <a href="#livedrive" class="nav-item" data-view="livedrive">
-                    <svg viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.85 7h10.29l1.04 3H5.81l1.04-3zM19 17H5v-4h14v4z"/></svg>
-                    <span>02 Live Drive</span>
-                </a>
                 <a href="#cameras" class="nav-item" data-view="cameras">
-                    <svg viewBox="0 0 24 24"><path d="M9.4 10.5l4.77-2.76 4.77 2.76V16l-4.77 2.76-4.77-2.76zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/></svg>
-                    <span>03 Cameras</span>
+                    <svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+                    <span>02 Cameras</span>
                 </a>
                 <a href="#map" class="nav-item" data-view="map">
                     <svg viewBox="0 0 24 24"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
-                    <span>04 Map</span>
+                    <span>03 Map</span>
                 </a>
                 <a href="#decisions" class="nav-item" data-view="decisions">
                     <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-                    <span>05 Decisions</span>
+                    <span>04 Decisions</span>
                 </a>
                 <a href="#analytics" class="nav-item" data-view="analytics">
                     <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
-                    <span>06 Analytics</span>
+                    <span>05 Analytics</span>
                 </a>
                 <a href="#logs" class="nav-item" data-view="logs">
                     <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
-                    <span>07 Logs</span>
+                    <span>06 Logs</span>
                 </a>
                 <a href="#scenarios" class="nav-item" data-view="scenarios">
                     <svg viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>
-                    <span>08 Scenarios</span>
+                    <span>07 Scenarios</span>
                 </a>
                 <a href="#system" class="nav-item" data-view="system">
-                    <svg viewBox="0 0 24 24"><path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5-3.5 3.5z"/></svg>
-                    <span>09 System</span>
+                    <svg viewBox="0 0 24 24"><path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>
+                    <span>08 System</span>
                 </a>
             </nav>
 
@@ -74,7 +286,7 @@
                 <div class="header-title">
                     <span>AV-01</span>
                     <span style="color:var(--text-subtle);">|</span>
-                    <span style="font-weight:400; font-size:0.78rem;">INTELLIGENT NAVIGATION & DECISION-SUPPORT</span>
+                    <span style="font-weight:400; font-size:0.78rem;">INTELLIGENT NAVIGATION &amp; DECISION-SUPPORT</span>
                     <span class="header-badge" id="source-badge">SOURCE: SIMULATOR</span>
                 </div>
                 <div class="header-right">
@@ -109,11 +321,11 @@
             </div>
 
             <!-- ============================================================
-                 01 DASHBOARD VIEW (CENTERPIECE 3D COCKPIT + RIGHT PANEL)
+                 01 DASHBOARD — 3D Cockpit + Sensor Panel + Live Decision Panel
                  ============================================================ -->
             <section id="dashboard" class="view-pane active" data-pane="dashboard">
                 <div class="dashboard-split-layout">
-                    <!-- Left: Main 3D Driving Scene (Centerpiece) -->
+                    <!-- Col 1: Main 3D Driving Scene (Centerpiece) -->
                     <div class="viewport-3d-main">
                         <div id="viewport-box-sim"></div>
 
@@ -136,7 +348,7 @@
                             </div>
                         </div>
 
-                        <!-- Floating Cockpit Guidance Decision HUD -->
+                        <!-- Floating Cockpit Guidance Decision HUD (bottom of viewport) -->
                         <div class="hud-decision-overlay">
                             <div class="hud-decision-header">
                                 <span class="hud-action-title" id="hud-action-title">MAINTAIN CRUISE</span>
@@ -154,7 +366,7 @@
                         </div>
                     </div>
 
-                    <!-- Right Side Panel: 2D Radar + Small Cameras + 360° Sensors -->
+                    <!-- Col 2: Right Sensor Panel (Radar + Small Cameras + 360° Arcs) -->
                     <aside class="dashboard-right-panel">
                         <!-- 1. 2D Top-Down Distance Radar Canvas -->
                         <div class="panel-section-card">
@@ -162,33 +374,33 @@
                                 <span>📡 2D SURROUND RADAR</span>
                                 <span style="font-family:var(--font-mono); font-size:0.6rem; color:var(--safety-green);">10HZ LIVE</span>
                             </div>
-                            <div style="height:170px; background:#04060a; border-radius:6px; overflow:hidden;">
-                                <canvas id="radarCanvas" width="290" height="170" style="width:100%; height:100%; display:block;"></canvas>
+                            <div style="height:160px; background:#04060a; border-radius:6px; overflow:hidden;">
+                                <canvas id="radarCanvas" width="240" height="160" style="width:100%; height:100%; display:block;"></canvas>
                             </div>
                         </div>
 
-                        <!-- 2. Small Multi-Camera Vision Feeds -->
+                        <!-- 2. Small Multi-Camera Vision Feeds (dashboard thumbnails) -->
                         <div class="panel-section-card">
                             <div class="panel-section-title">
-                                <span>📷 VISION CAMERA FEEDS</span>
-                                <span style="font-family:var(--font-mono); font-size:0.6rem; color:var(--text-subtle);">4 CHANNELS</span>
+                                <span>📷 CAMERAS</span>
+                                <span style="font-family:var(--font-mono); font-size:0.6rem; color:var(--text-subtle);">4 CH</span>
                             </div>
-                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px;">
                                 <div>
-                                    <div style="font-size:0.58rem; color:var(--text-subtle); margin-bottom:2px;">FRONT</div>
-                                    <canvas id="camCanvasFront" width="140" height="75" style="width:100%; height:65px; object-fit:cover; border-radius:4px; background:#000;"></canvas>
+                                    <div style="font-size:0.56rem; color:var(--text-subtle); margin-bottom:2px;">FRONT</div>
+                                    <canvas id="camThumbFront" width="110" height="62" style="width:100%; height:58px; border-radius:4px; background:#000; display:block;"></canvas>
                                 </div>
                                 <div>
-                                    <div style="font-size:0.58rem; color:var(--text-subtle); margin-bottom:2px;">REAR</div>
-                                    <canvas id="camCanvasRear" width="140" height="75" style="width:100%; height:65px; object-fit:cover; border-radius:4px; background:#000;"></canvas>
+                                    <div style="font-size:0.56rem; color:var(--text-subtle); margin-bottom:2px;">REAR</div>
+                                    <canvas id="camThumbRear" width="110" height="62" style="width:100%; height:58px; border-radius:4px; background:#000; display:block;"></canvas>
                                 </div>
                                 <div>
-                                    <div style="font-size:0.58rem; color:var(--text-subtle); margin-bottom:2px;">LEFT</div>
-                                    <canvas id="camCanvasLeft" width="140" height="75" style="width:100%; height:65px; object-fit:cover; border-radius:4px; background:#000;"></canvas>
+                                    <div style="font-size:0.56rem; color:var(--text-subtle); margin-bottom:2px;">LEFT</div>
+                                    <canvas id="camThumbLeft" width="110" height="62" style="width:100%; height:58px; border-radius:4px; background:#000; display:block;"></canvas>
                                 </div>
                                 <div>
-                                    <div style="font-size:0.58rem; color:var(--text-subtle); margin-bottom:2px;">RIGHT</div>
-                                    <canvas id="camCanvasRight" width="140" height="75" style="width:100%; height:65px; object-fit:cover; border-radius:4px; background:#000;"></canvas>
+                                    <div style="font-size:0.56rem; color:var(--text-subtle); margin-bottom:2px;">RIGHT</div>
+                                    <canvas id="camThumbRight" width="110" height="62" style="width:100%; height:58px; border-radius:4px; background:#000; display:block;"></canvas>
                                 </div>
                             </div>
                         </div>
@@ -198,7 +410,7 @@
                             <div class="panel-section-title">
                                 <span>📡 360° SENSOR PROXIMITY</span>
                             </div>
-                            <div style="height:140px; position:relative; background:#080808; border-radius:6px; border:1px solid var(--border-subtle); display:flex; align-items:center; justify-content:center;">
+                            <div style="height:120px; position:relative; background:#080808; border-radius:6px; border:1px solid var(--border-subtle); display:flex; align-items:center; justify-content:center;">
                                 <div class="spatial-ego-car"></div>
                                 <div class="sensor-arc-zone zone-front zone-active-nominal" id="zone-front">FRONT 250m</div>
                                 <div class="sensor-arc-zone zone-rear zone-active-nominal" id="zone-rear">REAR 100m</div>
@@ -207,72 +419,161 @@
                             </div>
                         </div>
                     </aside>
+
+                    <!-- Col 3: Live Decision Panel (Explainable AI Guidance) -->
+                    <aside class="decision-live-panel">
+                        <!-- Header -->
+                        <div class="dec-card">
+                            <div class="dec-card-header">
+                                <span>🎯 EXPLAINABLE AI GUIDANCE</span>
+                                <span class="dec-groq-badge">⚡ GROQ LPU</span>
+                            </div>
+                            <!-- Primary Action -->
+                            <div class="dec-action-main" id="dec-action-main">MAINTAIN CRUISE</div>
+                            <!-- Meta pills -->
+                            <div class="dec-meta-row">
+                                <div class="dec-meta-pill">
+                                    <span>RISK LEVEL</span>
+                                    <span id="dec-risk-val" style="color:var(--safety-green);">LOW</span>
+                                </div>
+                                <div class="dec-meta-pill">
+                                    <span>CONFIDENCE</span>
+                                    <span id="dec-conf-val" style="color:var(--safety-green);">94%</span>
+                                </div>
+                            </div>
+                            <!-- Evidence box -->
+                            <div class="dec-evidence-box">
+                                <div class="dec-evidence-label">EVIDENCE-GROUNDED REASONING</div>
+                                <div id="dec-reason-text">Path clear. MPC tracking centerline. Multi-agent radar active.</div>
+                            </div>
+                            <!-- Sensor distances -->
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                                <div style="background:#0a0c11; border:1px solid var(--border-subtle); border-radius:5px; padding:4px 6px; font-size:0.58rem; font-family:var(--font-mono);">
+                                    <span style="color:rgba(255,255,255,0.35); display:block;">FRONT</span>
+                                    <span id="dec-sensor-front" style="color:#00f0ff;">—</span>
+                                </div>
+                                <div style="background:#0a0c11; border:1px solid var(--border-subtle); border-radius:5px; padding:4px 6px; font-size:0.58rem; font-family:var(--font-mono);">
+                                    <span style="color:rgba(255,255,255,0.35); display:block;">REAR</span>
+                                    <span id="dec-sensor-rear" style="color:#ff3366;">—</span>
+                                </div>
+                                <div style="background:#0a0c11; border:1px solid var(--border-subtle); border-radius:5px; padding:4px 6px; font-size:0.58rem; font-family:var(--font-mono);">
+                                    <span style="color:rgba(255,255,255,0.35); display:block;">LEFT</span>
+                                    <span id="dec-sensor-left" style="color:#00d66f;">—</span>
+                                </div>
+                                <div style="background:#0a0c11; border:1px solid var(--border-subtle); border-radius:5px; padding:4px 6px; font-size:0.58rem; font-family:var(--font-mono);">
+                                    <span style="color:rgba(255,255,255,0.35); display:block;">RIGHT</span>
+                                    <span id="dec-sensor-right" style="color:#00d66f;">—</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recent Hazard Alerts -->
+                        <div class="dec-card">
+                            <div class="dec-card-header">
+                                <span>🔔 LIVE THREAT MATRIX</span>
+                                <span id="dec-entity-count" style="background:#1a1d26; padding:1px 8px; border-radius:20px; font-size:0.58rem; color:#fff;">0 ENTITIES</span>
+                            </div>
+                            <div class="dec-hazard-list" id="dec-hazard-list">
+                                <div style="color:var(--text-subtle); font-size:0.65rem; text-align:center; padding:8px 0;">No hazards detected</div>
+                            </div>
+                        </div>
+
+                        <!-- Decision Chain: Sense → Plan → Act -->
+                        <div class="dec-card">
+                            <div class="dec-card-header">
+                                <span>⚡ DECISION CHAIN</span>
+                            </div>
+                            <div style="display:flex; flex-direction:column; gap:4px;" id="dec-chain-steps">
+                                <div style="display:flex; align-items:center; gap:7px; font-size:0.63rem;">
+                                    <div style="width:6px; height:6px; border-radius:50%; background:var(--safety-green); flex-shrink:0;"></div>
+                                    <span style="color:rgba(255,255,255,0.35); min-width:52px; font-size:0.55rem;">SENSE</span>
+                                    <span id="chain-sense" style="color:var(--text-dim);">360° LiDAR + Camera active</span>
+                                </div>
+                                <div style="display:flex; align-items:center; gap:7px; font-size:0.63rem;">
+                                    <div style="width:6px; height:6px; border-radius:50%; background:var(--safety-amber); flex-shrink:0;"></div>
+                                    <span style="color:rgba(255,255,255,0.35); min-width:52px; font-size:0.55rem;">ASSESS</span>
+                                    <span id="chain-assess" style="color:var(--text-dim);">Risk: LOW</span>
+                                </div>
+                                <div style="display:flex; align-items:center; gap:7px; font-size:0.63rem;">
+                                    <div style="width:6px; height:6px; border-radius:50%; background:#0288d1; flex-shrink:0;"></div>
+                                    <span style="color:rgba(255,255,255,0.35); min-width:52px; font-size:0.55rem;">PLAN</span>
+                                    <span id="chain-plan" style="color:var(--text-dim);">Frenet path selected</span>
+                                </div>
+                                <div style="display:flex; align-items:center; gap:7px; font-size:0.63rem;">
+                                    <div style="width:6px; height:6px; border-radius:50%; background:var(--safety-green); flex-shrink:0;"></div>
+                                    <span style="color:rgba(255,255,255,0.35); min-width:52px; font-size:0.55rem;">ACT</span>
+                                    <span id="chain-act" style="color:#fff; font-weight:600;">CRUISE @ 52 MPH</span>
+                                </div>
+                            </div>
+                        </div>
+                    </aside>
                 </div>
             </section>
 
             <!-- ============================================================
-                 02 LIVE DRIVE VIEW (FULLSCREEN GAMIFIED PLAYABLE)
+                 02 CAMERAS VIEW — Full-page 4-channel simulated camera feeds
                  ============================================================ -->
-            <section id="livedrive" class="view-pane" data-pane="livedrive" style="padding:20px;">
-                <div class="card-auto" style="flex:1; position:relative;">
-                    <div class="card-auto-title">
-                        <span>🎮 02 LIVE PLAYABLE DRIVE ENGINE</span>
-                        <span style="font-family:var(--font-mono); color:var(--safety-green);" id="drive-score-tag">SCORE: 840 · STREAK 01:24</span>
+            <section id="cameras" class="view-pane" data-pane="cameras" style="padding:16px;">
+                <div class="cam-page-grid">
+                    <!-- Front Primary Feed (large) -->
+                    <div class="cam-main-feed">
+                        <div class="cam-main-label">📷 FRONT PRIMARY (DOMINANT)</div>
+                        <div class="cam-main-badge">1080P · 60FPS</div>
+                        <canvas id="camPageFront" style="width:100%; height:100%; display:block; object-fit:cover;"></canvas>
                     </div>
-                    <div id="viewport-box-livedrive" style="flex:1; min-height:400px; background:#000; border-radius:8px; overflow:hidden;"></div>
+                    <!-- Side feeds column -->
+                    <div class="cam-side-col">
+                        <div class="cam-side-feed">
+                            <div class="cam-side-label">FRONT LEFT</div>
+                            <canvas id="camPageLeft" style="width:100%; height:100%; display:block;"></canvas>
+                        </div>
+                        <div class="cam-side-feed">
+                            <div class="cam-side-label">FRONT RIGHT</div>
+                            <canvas id="camPageRight" style="width:100%; height:100%; display:block;"></canvas>
+                        </div>
+                        <div class="cam-side-feed">
+                            <div class="cam-side-label">REAR CAMERA</div>
+                            <canvas id="camPageRear" style="width:100%; height:100%; display:block;"></canvas>
+                        </div>
+                    </div>
                 </div>
             </section>
 
             <!-- ============================================================
-                 03 CAMERAS VIEW
+                 03 MAP VIEW — Live MapLibre Satellite + 3D Buildings
                  ============================================================ -->
-            <section id="cameras" class="view-pane" data-pane="cameras" style="padding:20px;">
-                <div style="display:grid; grid-template-columns: 2fr 1fr; gap:16px; height:100%;">
-                    <div class="card-auto">
-                        <div class="card-auto-title"><span>📷 FRONT PRIMARY CAMERA (DOMINANT FEED)</span><span class="header-badge">1080P 60FPS</span></div>
-                        <div style="flex:1; background:#000; border-radius:8px; display:flex; align-items:center; justify-content:center; position:relative;">
-                            <canvas id="camCanvasFront" width="640" height="360" style="width:100%; height:100%; object-fit:cover;"></canvas>
+            <section id="map" class="view-pane" data-pane="map" style="padding:16px; position:relative;">
+                <div style="position:relative; flex:1; height:100%;">
+                    <div id="maplibre-container"></div>
+                    <div class="map-hud-overlay">
+                        <div class="map-hud-title">● AUTONAV LIVE MAP</div>
+                        <div class="map-hud-row">
+                            <span class="map-hud-label">STATUS</span>
+                            <span class="map-hud-val" style="color:var(--safety-green);">ONLINE</span>
                         </div>
-                    </div>
-                    <div style="display:flex; flex-direction:column; gap:16px;">
-                        <div class="card-auto" style="flex:1;">
-                            <div class="card-auto-title"><span>FRONT LEFT</span></div>
-                            <canvas id="camCanvasLeft" width="320" height="180" style="width:100%; height:100%; object-fit:cover; border-radius:6px;"></canvas>
+                        <div class="map-hud-row">
+                            <span class="map-hud-label">LOCATION</span>
+                            <span class="map-hud-val">DELHI, IN</span>
                         </div>
-                        <div class="card-auto" style="flex:1;">
-                            <div class="card-auto-title"><span>FRONT RIGHT</span></div>
-                            <canvas id="camCanvasRight" width="320" height="180" style="width:100%; height:100%; object-fit:cover; border-radius:6px;"></canvas>
+                        <div class="map-hud-row">
+                            <span class="map-hud-label">SPEED</span>
+                            <span class="map-hud-val" id="map-speed-val">0 km/h</span>
                         </div>
-                        <div class="card-auto" style="flex:1;">
-                            <div class="card-auto-title"><span>REAR CAMERA</span></div>
-                            <canvas id="camCanvasRear" width="320" height="180" style="width:100%; height:100%; object-fit:cover; border-radius:6px;"></canvas>
+                        <div class="map-hud-row">
+                            <span class="map-hud-label">MAP</span>
+                            <span class="map-hud-val">OSM SATELLITE</span>
                         </div>
                     </div>
                 </div>
             </section>
 
             <!-- ============================================================
-                 04 MAP VIEW (AUTOMOTIVE RVIZ SPATIAL NAVIGATION MAP)
-                 ============================================================ -->
-            <section id="map" class="view-pane" data-pane="map" style="padding:20px;">
-                <div class="card-auto" style="flex:1; position:relative;">
-                    <div class="card-auto-title">
-                        <span>🗺️ 04 AUTOMOTIVE RVIZ SPATIAL NAVIGATION MAP</span>
-                        <span style="font-family:var(--font-mono); color:var(--text-dim);">FREQ: 10HZ STREAM</span>
-                    </div>
-                    <div style="flex:1; background:#04060a; border-radius:8px; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center;">
-                        <canvas id="radarCanvas" width="800" height="500" style="width:100%; height:100%; display:block;"></canvas>
-                    </div>
-                </div>
-            </section>
-
-            <!-- ============================================================
-                 05 DECISIONS VIEW (AV-01 REASONING CHAIN & THREAT MATRIX)
+                 04 DECISIONS VIEW (AV-01 REASONING CHAIN & THREAT MATRIX)
                  ============================================================ -->
             <section id="decisions" class="view-pane" data-pane="decisions" style="padding:20px; gap:16px;">
                 <div class="card-auto">
                     <div class="card-auto-title">
-                        <span>⚡ 05 AV-01 REASONING CHAIN (SENSE → RISK → PLAN → RECOMMEND → EXPLAIN)</span>
+                        <span>⚡ 04 AV-01 REASONING CHAIN (SENSE → RISK → PLAN → RECOMMEND → EXPLAIN)</span>
                         <span class="header-badge" id="decisions-conf-tag">94% CONFIDENCE</span>
                     </div>
                     <div id="justificationsList-dec"></div>
@@ -288,7 +589,7 @@
             </section>
 
             <!-- ============================================================
-                 06 ANALYTICS VIEW (ACCUMULATED LIVE TELEMETRY CHARTS)
+                 05 ANALYTICS VIEW (ACCUMULATED LIVE TELEMETRY CHARTS)
                  ============================================================ -->
             <section id="analytics" class="view-pane" data-pane="analytics" style="padding:20px; gap:16px;">
                 <div class="analytics-grid-auto">
@@ -326,7 +627,7 @@
                             <canvas id="chart-lidar-proximity" width="400" height="140" style="width:100%; height:130px; background:#080808; border-radius:6px; border:1px solid var(--border-subtle);"></canvas>
                         </div>
                         <div>
-                            <div style="font-size:0.7rem; color:var(--text-subtle); margin-bottom:4px;">Object Density & LPU Latency (ms)</div>
+                            <div style="font-size:0.7rem; color:var(--text-subtle); margin-bottom:4px;">Object Density &amp; LPU Latency (ms)</div>
                             <canvas id="chart-density-latency" width="400" height="140" style="width:100%; height:130px; background:#080808; border-radius:6px; border:1px solid var(--border-subtle);"></canvas>
                         </div>
                     </div>
@@ -334,19 +635,18 @@
             </section>
 
             <!-- ============================================================
-                 07 LOGS VIEW (REAL-TIME ENGINEERING DIAGNOSTIC TELEMETRY)
+                 06 LOGS VIEW (REAL-TIME ENGINEERING DIAGNOSTIC TELEMETRY)
                  ============================================================ -->
             <section id="logs" class="view-pane" data-pane="logs" style="padding:20px;">
                 <div class="card-auto">
-                    <div class="card-auto-title"><span>📋 07 REAL-TIME TELEMETRY DIAGNOSTIC LOGS</span><span class="header-badge">LIVE EVENT STREAM</span></div>
+                    <div class="card-auto-title"><span>📋 06 REAL-TIME TELEMETRY DIAGNOSTIC LOGS</span><span class="header-badge">LIVE EVENT STREAM</span></div>
                     <table class="table-auto">
                         <thead>
                             <tr>
                                 <th>Timestamp</th>
                                 <th>Frame ID</th>
                                 <th>Source</th>
-                                <th>Dominant Hazard</th>
-                                <th>Distance</th>
+                                <th>Risk</th>
                                 <th>Action</th>
                                 <th>Confidence</th>
                             </tr>
@@ -356,8 +656,7 @@
                                 <td style="font-family:var(--font-mono);">10:24:32.102</td>
                                 <td style="font-family:var(--font-mono);">#1420</td>
                                 <td>Synthetic</td>
-                                <td>VEHICLE_01</td>
-                                <td style="font-family:var(--font-mono);">28.5m</td>
+                                <td style="color:var(--safety-green);">LOW</td>
                                 <td style="color:var(--safety-green); font-weight:700;">MAINTAIN CRUISE</td>
                                 <td style="font-family:var(--font-mono);">94%</td>
                             </tr>
@@ -367,11 +666,11 @@
             </section>
 
             <!-- ============================================================
-                 08 SCENARIOS VIEW (DRIVING MISSION LAUNCHER)
+                 07 SCENARIOS VIEW (DRIVING MISSION LAUNCHER)
                  ============================================================ -->
             <section id="scenarios" class="view-pane" data-pane="scenarios" style="padding:20px;">
                 <div class="card-auto">
-                    <div class="card-auto-title"><span>🎯 08 EDGE-CASE DRIVING MISSION LAUNCHER</span></div>
+                    <div class="card-auto-title"><span>🎯 07 EDGE-CASE DRIVING MISSION LAUNCHER</span></div>
                     <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap:16px; margin-top:8px;">
                         <div class="card-auto" style="background:#0e0e0e;">
                             <div class="card-auto-title"><span>🚴 Cyclist Overtake</span><span class="header-badge">RSS Safe Pass</span></div>
@@ -398,11 +697,11 @@
             </section>
 
             <!-- ============================================================
-                 09 SYSTEM HEALTH VIEW (SUBSYSTEM WATCHDOG)
+                 08 SYSTEM HEALTH VIEW (SUBSYSTEM WATCHDOG)
                  ============================================================ -->
             <section id="system" class="view-pane" data-pane="system" style="padding:20px;">
                 <div class="card-auto">
-                    <div class="card-auto-title"><span>🏥 09 SUBSYSTEM WATCHDOG & PROCESS MONITOR</span></div>
+                    <div class="card-auto-title"><span>🏥 08 SUBSYSTEM WATCHDOG &amp; PROCESS MONITOR</span></div>
                     <div class="analytics-grid-auto" style="margin-top:8px;">
                         <div class="stat-box-auto">
                             <div class="stat-label-auto">Sensors SAL</div>
@@ -438,7 +737,7 @@
     <div class="modal-overlay" id="aboutModal">
         <div class="modal-auto">
             <div class="modal-header">
-                <div class="modal-title">AV-01 — System Objective & Architecture</div>
+                <div class="modal-title">AV-01 — System Objective &amp; Architecture</div>
                 <button class="modal-close-btn" onclick="closeAboutModal()">✕</button>
             </div>
             <div style="font-size:0.8rem; color:var(--text-dim); line-height:1.6;">
@@ -462,5 +761,6 @@
     <script src="/static/js/pages.js"></script>
     <script src="/static/js/telemetry.js"></script>
     <script src="/static/js/main.js"></script>
+    <script src="/static/js/map_module.js"></script>
 </body>
 </html>

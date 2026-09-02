@@ -1,6 +1,7 @@
 /**
  * AV-01 Decisions & Threat Matrix Renderer
- * Updates Floating Cockpit Decision HUD, 360° Spatial Sensor Arcs, Reasoning Chain, and Threat Matrix.
+ * Updates: Floating Cockpit HUD, Dashboard Live Decision Panel,
+ *          360° Sensor Arcs, Reasoning Chain, and Threat Matrix.
  */
 
 function updateDecisionsUI() {
@@ -176,4 +177,114 @@ function updateDecisionsUI() {
     }
 }
 
+/**
+ * Updates the live Decision Panel on the right of the Dashboard.
+ * Called from updateDecisionsUI (decisions page) AND from telemetry.js HUD update loop.
+ */
+function updateDashboardDecisionPanel() {
+    const g = AVState.latestGuidance;
+    const ego = AVState.egoState;
+    const sD = AVState.sensorDistances || {};
+
+    // 1. Primary Action Text + Color
+    const actionEl = document.getElementById('dec-action-main');
+    if (actionEl) {
+        const cleanAction = (g.action || 'MAINTAIN CRUISE').replace(/[🚨🟢🟡🟠🔵🇮🇳⚡]/gu, '').trim().slice(0, 50);
+        actionEl.innerText = cleanAction;
+        actionEl.className = 'dec-action-main' +
+            (g.riskLevel === 'CRITICAL' ? ' risk-critical' :
+             g.riskLevel === 'HIGH' ? ' risk-high' :
+             g.riskLevel === 'MEDIUM' ? ' risk-medium' : '');
+    }
+
+    // 2. Risk Level + Confidence
+    const riskEl = document.getElementById('dec-risk-val');
+    if (riskEl) {
+        riskEl.innerText = g.riskLevel || 'LOW';
+        riskEl.style.color = g.riskLevel === 'CRITICAL' ? 'var(--safety-red)' :
+                             g.riskLevel === 'HIGH' ? '#ff7043' :
+                             g.riskLevel === 'MEDIUM' ? 'var(--safety-amber)' : 'var(--safety-green)';
+    }
+
+    const confEl = document.getElementById('dec-conf-val');
+    if (confEl) {
+        confEl.innerText = `${Math.round((g.confidence || 0.94) * 100)}%`;
+        confEl.style.color = (g.confidence || 0.94) > 0.85 ? 'var(--safety-green)' :
+                              (g.confidence || 0.94) > 0.65 ? 'var(--safety-amber)' : 'var(--safety-red)';
+    }
+
+    // 3. Evidence/Reason
+    const reasonEl = document.getElementById('dec-reason-text');
+    if (reasonEl) {
+        const r = (g.reason || '360° radar active. MPC tracking centerline.').slice(0, 160);
+        if (reasonEl.innerText !== r) reasonEl.innerText = r;
+    }
+
+    // 4. Sensor Distances
+    const setSD = (id, val, max, dangerColor, nomColor) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const v = val < max ? `${val.toFixed(1)}m` : `${max}m+`;
+        if (el.innerText !== v) el.innerText = v;
+        el.style.color = val < max * 0.15 ? '#e82127' : val < max * 0.3 ? '#ffb020' : nomColor;
+    };
+    setSD('dec-sensor-front', sD.front || 250, 250, '#e82127', '#00f0ff');
+    setSD('dec-sensor-rear', sD.rear || 100, 100, '#e82127', '#ff3366');
+    setSD('dec-sensor-left', sD.left || 80, 80, '#e82127', '#00d66f');
+    setSD('dec-sensor-right', sD.right || 80, 80, '#e82127', '#00d66f');
+
+    // 5. Hazard List
+    const hazardList = document.getElementById('dec-hazard-list');
+    const entityCountEl = document.getElementById('dec-entity-count');
+    if (hazardList) {
+        const entities = [...AVState.worldEntities.entries()];
+        if (entityCountEl) entityCountEl.innerText = `${entities.length} ENTITIES`;
+
+        if (entities.length === 0) {
+            hazardList.innerHTML = '<div style="color:var(--text-subtle); font-size:0.65rem; text-align:center; padding:8px 0;">No entities detected</div>';
+        } else {
+            // Sort by distance and show top 5
+            const sorted = entities
+                .map(([id, e]) => {
+                    const rel = (typeof getRelativePosition === 'function')
+                        ? getRelativePosition(ego, e)
+                        : { distance: Math.abs(e.getDistanceToEgo()), sector: 'FRONT', isFront: true };
+                    const risk = rel.distance < 8 ? 'CRITICAL' : rel.distance < 15 ? 'HIGH' : rel.distance < 30 ? 'MEDIUM' : 'LOW';
+                    return { id, e, rel, risk };
+                })
+                .sort((a, b) => a.rel.distance - b.rel.distance)
+                .slice(0, 5);
+
+            hazardList.innerHTML = sorted.map(({ id, e, rel, risk }) => `
+                <div class="dec-hazard-row">
+                    <div class="dec-hazard-left">
+                        <div class="dec-hazard-id">${id.toUpperCase()}</div>
+                        <div class="dec-hazard-sub">${e.type.toUpperCase()} · ${rel.sector}</div>
+                    </div>
+                    <div class="dec-hazard-right">
+                        <span class="dec-risk-badge risk-${risk}">${risk}</span>
+                        <span class="dec-hazard-dist">${rel.distance.toFixed(1)}m</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+    }
+
+    // 6. Decision Chain steps
+    const chainSense = document.getElementById('chain-sense');
+    const chainAssess = document.getElementById('chain-assess');
+    const chainPlan = document.getElementById('chain-plan');
+    const chainAct = document.getElementById('chain-act');
+    const entityCount = AVState.worldEntities.size;
+
+    if (chainSense) chainSense.innerText = `${entityCount} entities in FOV`;
+    if (chainAssess) chainAssess.innerText = `Risk: ${g.riskLevel || 'LOW'} · ${entityCount} tracked`;
+    if (chainPlan) {
+        const maneuver = (sD.front || 250) < 15 ? 'Overtake / Speed-match' : 'Cruise centerline';
+        chainPlan.innerText = maneuver;
+    }
+    if (chainAct) chainAct.innerText = `${(g.action || 'CRUISE').replace(/[🚨🟢🟡🟠🔵🇮🇳⚡]/gu, '').trim().slice(0, 28)} @ ${Math.round(ego.speedMph)} MPH`;
+}
+
 window.updateDecisionsUI = updateDecisionsUI;
+window.updateDashboardDecisionPanel = updateDashboardDecisionPanel;

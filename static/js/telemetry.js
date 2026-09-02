@@ -124,6 +124,8 @@ class TelemetryReceiver {
 
         // Decisions page — update at lower rate
         if (typeof updateDecisionsUI === 'function') updateDecisionsUI();
+        // Live dashboard decision panel — always update
+        if (typeof updateDashboardDecisionPanel === 'function') updateDashboardDecisionPanel();
     }
 
     _setStatusDot(status) {

@@ -58,11 +58,9 @@ class PageRouter {
             pane.classList.toggle('active', matches);
         });
 
-        // WebGL Canvas Reparenting (Prevents 3D view breakage across tabs)
+        // WebGL Canvas Reparenting (keeps 3D scene live across tab switches)
         if (typeof renderer !== 'undefined' && renderer.domElement) {
-            let targetBoxId = (view === 'livedrive') ? 'viewport-box-livedrive' : 'viewport-box-sim';
-            let targetBox = document.getElementById(targetBoxId);
-
+            const targetBox = document.getElementById('viewport-box-sim');
             if (targetBox && targetBox.clientWidth > 0 && targetBox.clientHeight > 0) {
                 if (renderer.domElement.parentElement !== targetBox) {
                     targetBox.appendChild(renderer.domElement);
@@ -75,11 +73,14 @@ class PageRouter {
             }
         }
 
-        // Render target page-specific graphics immediately
+        // Page-specific callbacks
         if (view === 'analytics') {
             if (typeof renderAnalyticsCharts === 'function') renderAnalyticsCharts();
         } else if (view === 'decisions') {
             if (typeof updateDecisionsUI === 'function') updateDecisionsUI();
+        } else if (view === 'map') {
+            // Initialize MapLibre on first visit to map page
+            if (typeof window.onMapPageActivated === 'function') window.onMapPageActivated();
         }
     }
 }
