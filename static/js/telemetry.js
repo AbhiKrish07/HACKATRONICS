@@ -1,12 +1,18 @@
 /**
  * AV-01 Real-Time WebSocket Telemetry Receiver
- * Streams 10Hz authoritative backend frames into HUD speedometer, logs, state, and charts.
+ *
+ * Architecture:
+ *   WebSocket (10Hz) → AVState.updateFromWebSocket() → shared state
+ *   DOM updates are throttled separately — NOT inside requestAnimationFrame
  */
 
 class TelemetryReceiver {
     constructor() {
         this.ws = null;
+        this._hudUpdateInterval = null;
         this.connect();
+        // HUD updates at ~10 FPS (every 100ms) — decoupled from render loop
+        this._hudUpdateInterval = setInterval(() => this._updateHUD(), 100);
     }
 
     connect() {
@@ -16,86 +22,155 @@ class TelemetryReceiver {
         this.ws = new WebSocket(wsUrl);
 
         this.ws.onopen = () => {
-            console.log('[Telemetry] Connected to WebSocket stream');
-            const dot = document.getElementById('system-status-dot');
-            const txt = document.getElementById('system-status-text');
-            if (dot) dot.style.background = 'var(--safety-green)';
-            if (txt) txt.innerText = 'NOMINAL';
+            console.log('[Telemetry] WebSocket connected');
+            AVState.systemStatus = 'NOMINAL';
+            this._setStatusDot('NOMINAL');
         };
 
         this.ws.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
-                this.handleTelemetryFrame(data);
+                // Delegate ALL state updates to AVState — do NOT touch DOM here
+                AVState.updateFromWebSocket(data);
+                // Store last raw frame for log table (event-driven, not per-render)
+                this._lastFrame = data;
+                this._appendLogRow(data);
             } catch (e) {
                 console.error('[Telemetry] Parse error:', e);
             }
         };
 
         this.ws.onclose = () => {
-            const dot = document.getElementById('system-status-dot');
-            const txt = document.getElementById('system-status-text');
-            if (dot) dot.style.background = 'var(--safety-red)';
-            if (txt) txt.innerText = 'DISCONNECTED';
+            AVState.systemStatus = 'DISCONNECTED';
+            this._setStatusDot('DISCONNECTED');
+            // Reconnect after 2s
             setTimeout(() => this.connect(), 2000);
+        };
+
+        this.ws.onerror = (err) => {
+            console.warn('[Telemetry] WebSocket error', err);
         };
     }
 
-    handleTelemetryFrame(frame) {
-        if (!frame) return;
+    /**
+     * Update HUD DOM elements — runs at 10 FPS via interval, NOT in rAF loop.
+     */
+    _updateHUD() {
+        const ego = AVState.egoState;
+        const guidance = AVState.latestGuidance;
 
-        // 1. Update Global AVState
-        AVState.updateFromWebSocket(frame);
-
-        // 2. Speedometer HUD Updates
-        const speedVal = document.getElementById('hud-speed-val');
-        if (speedVal && frame.vehicle_state) {
-            const speedKm = Math.round((frame.vehicle_state.speed_mps || 14.5) * 3.6);
-            speedVal.innerText = speedKm;
+        // Speed display
+        const speedEl = document.getElementById('hud-speed-val');
+        if (speedEl) {
+            const displaySpeed = Math.round(ego.speedMph);
+            if (speedEl.innerText !== String(displaySpeed)) speedEl.innerText = displaySpeed;
         }
 
-        const targetSpeed = document.getElementById('hud-target-speed');
-        if (targetSpeed && frame.guidance) {
-            const tgtKm = Math.round((frame.guidance.target_speed_mps || 19.4) * 3.6);
-            targetSpeed.innerText = `${tgtKm} KM/H`;
+        // Decision HUD
+        const actionEl = document.getElementById('hud-action-title');
+        if (actionEl) {
+            const shortAction = (guidance.action || 'CRUISE').replace(/[🚨🟢🟡🟠🔵🇮🇳]/gu, '').trim().slice(0, 30);
+            if (actionEl.innerText !== shortAction) actionEl.innerText = shortAction;
         }
 
-        // Source badge update
-        const srcBadge = document.getElementById('source-badge');
-        if (srcBadge && frame.source) {
-            srcBadge.innerText = `SOURCE: ${frame.source.toUpperCase()}`;
+        const confEl = document.getElementById('hud-conf-pill');
+        if (confEl) {
+            const confText = `${Math.round((guidance.confidence || 0.94) * 100)}%`;
+            if (confEl.innerText !== confText) confEl.innerText = confText;
         }
 
-        // 3. Dynamic Telemetry Diagnostic Logs Table
-        const logsTable = document.getElementById('logs-table-body');
-        if (logsTable && frame.guidance) {
-            const now = new Date().toLocaleTimeString();
-            const frameId = `#${frame.frame_id || Math.floor(Math.random() * 9000 + 1000)}`;
-            const src = frame.source || 'Synthetic';
-            const action = frame.guidance.action || 'MAINTAIN CRUISE';
-            const conf = `${Math.round((frame.guidance.confidence || 0.94) * 100)}%`;
+        const reasonEl = document.getElementById('hud-reason-text');
+        if (reasonEl) {
+            const r = (guidance.reason || '').slice(0, 120);
+            if (reasonEl.innerText !== r) reasonEl.innerText = r;
+        }
 
-            const rowHtml = `
-                <tr>
-                    <td style="font-family:var(--font-mono);">${now}</td>
-                    <td style="font-family:var(--font-mono);">${frameId}</td>
-                    <td>${src}</td>
-                    <td>VEHICLE_01</td>
-                    <td style="font-family:var(--font-mono);">28.5m</td>
-                    <td style="color:var(--safety-green); font-weight:700;">${action}</td>
-                    <td style="font-family:var(--font-mono);">${conf}</td>
-                </tr>
-            `;
-
-            if (logsTable.children.length > 8) {
-                logsTable.removeChild(logsTable.lastElementChild);
+        // Dominant hazard in HUD
+        const hazardDistEl = document.getElementById('hud-hazard-dist');
+        const hazardIdEl = document.getElementById('hud-hazard-id');
+        if (hazardDistEl && hazardIdEl && AVState.activeHazards.length > 0) {
+            const top = AVState.activeHazards[0];
+            // Only show if it's in front — do NOT show rear hazards as front hazard
+            if (top.isFront || Math.abs(top.longitudinal) < 3) {
+                hazardDistEl.innerText = `${top.distance.toFixed(1)}m`;
+                hazardIdEl.innerText = top.id || top.type;
+            } else {
+                hazardDistEl.innerText = `${top.distance.toFixed(1)}m`;
+                hazardIdEl.innerText = `${top.sector}: ${top.id || top.type}`;
             }
-            logsTable.insertAdjacentHTML('afterbegin', rowHtml);
         }
 
-        // 4. Update Cockpit Decisions HUD & Analytics
+        // Source badge
+        const srcBadge = document.getElementById('source-badge');
+        if (srcBadge) {
+            const srcText = `SOURCE: ${AVState.source}`;
+            if (srcBadge.innerText !== srcText) srcBadge.innerText = srcText;
+        }
+
+        // System status dot
+        this._setStatusDot(AVState.systemStatus);
+
+        // Autopilot wheel icon color
+        const wheelIcon = document.getElementById('tesla-wheel-icon');
+        if (wheelIcon) {
+            if (ego.isAutoPilot) {
+                wheelIcon.style.background = '#0288d1';
+                wheelIcon.style.boxShadow = '0 0 14px rgba(2,136,209,0.5)';
+            } else {
+                wheelIcon.style.background = '#555';
+                wheelIcon.style.boxShadow = 'none';
+            }
+        }
+
+        // Decisions page — update at lower rate
         if (typeof updateDecisionsUI === 'function') updateDecisionsUI();
-        if (typeof renderAnalyticsCharts === 'function') renderAnalyticsCharts();
+    }
+
+    _setStatusDot(status) {
+        const dot = document.getElementById('system-status-dot');
+        const txt = document.getElementById('system-status-text');
+        if (!dot || !txt) return;
+
+        const map = {
+            NOMINAL: { color: 'var(--safety-green)', label: 'NOMINAL' },
+            DEGRADED: { color: 'var(--safety-amber)', label: 'DEGRADED' },
+            SENSOR_GAP: { color: 'var(--safety-amber)', label: 'SENSOR GAP' },
+            CONFLICT: { color: '#9c27b0', label: 'CONFLICT' },
+            CRITICAL: { color: 'var(--safety-red)', label: 'CRITICAL' },
+            DISCONNECTED: { color: 'var(--safety-red)', label: 'DISCONNECTED' }
+        };
+        const s = map[status] || map.NOMINAL;
+        dot.style.background = s.color;
+        if (txt.innerText !== s.label) txt.innerText = s.label;
+    }
+
+    /**
+     * Append a row to the logs table — event-driven, not per-frame.
+     */
+    _appendLogRow(frame) {
+        const logsTable = document.getElementById('logs-table-body');
+        if (!logsTable || !frame.guidance) return;
+
+        const now = new Date().toLocaleTimeString();
+        const frameId = `#${frame.frame_id || Math.floor(Math.random() * 9000 + 1000)}`;
+        const src = frame.source || 'Simulator';
+        const action = (frame.guidance.action || 'MAINTAIN CRUISE').replace(/[🚨🟢🟡🟠🔵🇮🇳]/gu, '').trim().slice(0, 30);
+        const conf = `${Math.round((frame.guidance.confidence || 0.94) * 100)}%`;
+        const risk = frame.guidance.risk_level || 'LOW';
+        const riskColor = risk === 'CRITICAL' ? 'var(--safety-red)' : risk === 'HIGH' ? '#ff7043' : risk === 'MEDIUM' ? 'var(--safety-amber)' : 'var(--safety-green)';
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td style="font-family:var(--font-mono)">${now}</td>
+            <td style="font-family:var(--font-mono)">${frameId}</td>
+            <td>${src}</td>
+            <td style="color:${riskColor}">${risk}</td>
+            <td style="font-weight:600">${action}</td>
+            <td style="font-family:var(--font-mono)">${conf}</td>
+        `;
+
+        if (logsTable.children.length >= 12) logsTable.removeChild(logsTable.lastElementChild);
+        logsTable.insertBefore(row, logsTable.firstChild);
     }
 }
 

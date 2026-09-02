@@ -4,23 +4,99 @@
  * side & rear laser raycast sensors, and continuous Groq AI decision obedience.
  */
 
+/**
+ * Three.js Object Mesh Pool for persistent zero-allocation entity rendering
+ */
+class MeshPool {
+    constructor() {
+        this.pools = new Map();
+    }
+
+    acquireMesh(type) {
+        if (!this.pools.has(type)) this.pools.set(type, []);
+        const pool = this.pools.get(type);
+        if (pool.length > 0) {
+            const mesh = pool.pop();
+            mesh.visible = true;
+            return mesh;
+        }
+        return createHighFidelityMesh(type);
+    }
+
+    releaseMesh(type, mesh) {
+        if (!mesh) return;
+        mesh.visible = false;
+        if (scene) scene.remove(mesh);
+        if (!this.pools.has(type)) this.pools.set(type, []);
+        this.pools.get(type).push(mesh);
+    }
+}
+
+const globalMeshPool = new MeshPool();
+
+/**
+ * Universal Relative Position & Sector Classification
+ */
+function getRelativePosition(ego, agent) {
+    const egoZ = ego.worldZ || 0;
+    const egoX = ego.x || 0;
+    const agentZ = agent.worldZ !== undefined ? agent.worldZ : (egoZ - (agent.dist || 20));
+    const agentX = agent.posX !== undefined ? agent.posX : (agent.x || 0);
+
+    const dLong = agentZ - egoZ; // negative = behind ego, positive = ahead of ego
+    const dLat = agentX - egoX;  // negative = left of ego, positive = right of ego
+    const dist = Math.sqrt(dLong * dLong + dLat * dLat);
+    const absLong = Math.abs(dLong);
+    const absLat = Math.abs(dLat);
+
+    let sector = 'FRONT';
+    if (dLong < -1.0) {
+        if (absLat < 2.2) sector = 'REAR';
+        else if (dLat < -2.2) sector = 'REAR_LEFT';
+        else sector = 'REAR_RIGHT';
+    } else if (dLong > 1.0) {
+        if (absLat < 2.2) sector = 'FRONT';
+        else if (dLat < -2.2) sector = 'FRONT_LEFT';
+        else sector = 'FRONT_RIGHT';
+    } else {
+        if (dLat < 0) sector = 'LEFT';
+        else sector = 'RIGHT';
+    }
+
+    return {
+        longitudinal: dLong,
+        lateral: dLat,
+        distance: dist,
+        sector: sector,
+        isRear: dLong < -1.0,
+        isFront: dLong > 1.0
+    };
+}
+window.getRelativePosition = getRelativePosition;
+
 class WorldEntity {
     constructor(id, type, worldZ, posX = 0, speedMph = 42.0, headingDeg = 0) {
         this.id = id;
         this.type = type;
         this.worldZ = worldZ;
         this.posX = posX;
+        this.targetWorldZ = worldZ;
+        this.targetPosX = posX;
         this.speedMph = speedMph;
         this.targetSpeedMph = speedMph;
         this.headingDeg = headingDeg;
+        this.missingTicks = 0;
         
         // Bounding dimensions for collision physics
         this.width = type === 'truck' ? 2.5 : type === 'motorcycle' ? 0.8 : type === 'pedestrian' || type === 'cyclist' ? 0.8 : 1.9;
         this.length = type === 'truck' ? 7.0 : type === 'motorcycle' ? 1.8 : type === 'pedestrian' || type === 'cyclist' ? 1.0 : 4.2;
 
-        this.mesh = createHighFidelityMesh(type);
-        this.mesh.position.set(posX, 0, worldZ);
-        scene.add(this.mesh);
+        this.mesh = globalMeshPool.acquireMesh(type);
+        // Three.js: camera looks toward -Z. Entities ahead of ego must have negative mesh.z.
+        // worldZ increases forward in ego's frame. mesh.z = -(entity.worldZ - ego.worldZ).
+        const egoWorldZ = AVState.egoState.worldZ;
+        this.mesh.position.set(posX, 0, -(worldZ - egoWorldZ));
+        if (scene && !this.mesh.parent) scene.add(this.mesh);
 
         this.predictionLine = null;
         this.minTTC = 999.0;
@@ -28,31 +104,13 @@ class WorldEntity {
         this.wobblePhase = Math.random() * Math.PI * 2;
     }
 
-    update(dt, egoSpeedMps, egoWorldZ, egoX, egoSpeedMph) {
+    updateInterpolated(dt, egoSpeedMps, egoWorldZ, egoX, egoSpeedMph) {
         const dToEgo = this.getDistanceToEgo();
         const rxToEgo = this.posX - egoX;
         const inSameLane = Math.abs(rxToEgo) < 2.2;
         const isBehindEgo = dToEgo < 0;
-        const closingFast = isBehindEgo && this.targetSpeedMph > egoSpeedMph + 2.0;
 
-        // Rear vehicle overtake logic: if faster than ego and getting close, change lane
-        if (isBehindEgo && inSameLane && Math.abs(dToEgo) < 28.0) {
-            if (closingFast) {
-                // Pick an overtake lane (prefer left, then right)
-                const overtakeX = this.posX < 0 ? this.posX + 4.0 : this.posX - 4.0;
-                this.targetLaneX = Math.max(-10.0, Math.min(10.0, overtakeX));
-            } else if (Math.abs(dToEgo) < 10.0) {
-                // Too close but not fast enough to overtake — match ego speed + buffer
-                this.speedMph = Math.max(0, Math.min(this.targetSpeedMph, egoSpeedMph - 3.0));
-            }
-        } else if (!isBehindEgo || !inSameLane) {
-            // Drift back to original lane once past
-            if (Math.abs(this.targetLaneX - this.posX) < 0.3) {
-                this.targetLaneX = this.posX; // settled
-            }
-        }
-
-        // Smooth acceleration back to target speed when not boxed in
+        // Smooth acceleration back to target speed
         if (this.speedMph < this.targetSpeedMph) {
             this.speedMph = Math.min(this.targetSpeedMph, this.speedMph + 8.0 * dt);
         }
@@ -61,26 +119,34 @@ class WorldEntity {
         const relSpeedMps = speedMps - egoSpeedMps;
 
         this.worldZ += relSpeedMps * dt;
-        this.mesh.position.z = this.worldZ - egoWorldZ;
+        
+        // Three.js: negative Z is forward/ahead. Entity ahead of ego has positive longitudinal diff.
+        // So mesh.z must be negated: mesh.z = -(entity.worldZ - egoWorldZ)
+        const lerpFactor = 1.0 - Math.exp(-14.0 * dt);
+        const curZ = this.mesh.position.z;
+        const targetZ = -(this.worldZ - egoWorldZ); // negative = ahead
+        this.mesh.position.z += (targetZ - curZ) * lerpFactor;
 
         if (this.type === 'motorcycle') {
             this.wobblePhase += dt * 1.2;
             this.posX += Math.sin(this.wobblePhase) * 0.3 * dt;
             this.mesh.rotation.y = Math.PI + Math.cos(this.wobblePhase) * 0.06;
         } else if (this.type === 'pedestrian') {
-            // Pedestrian walks sideways slowly on shoulder — tiny lateral drift only
             this.posX += Math.sin(performance.now() * 0.0005) * 0.15 * dt;
             this.mesh.position.y = Math.abs(Math.sin(performance.now() * 0.004)) * 0.04;
         } else if (this.type === 'cyclist') {
             this.posX = 5.2 + Math.sin(performance.now() * 0.0006) * 0.12;
         } else {
-            // Car/Truck: smooth lane-target tracking
-            this.posX += (this.targetLaneX - this.posX) * 2.5 * dt;
-            this.mesh.rotation.y = Math.PI + (this.targetLaneX - this.posX) * -0.04;
+            this.posX += (this.targetLaneX - this.posX) * 3.5 * dt;
+            this.mesh.rotation.y = Math.PI + (this.targetLaneX - this.posX) * -0.05;
         }
 
-        this.mesh.position.x = this.posX;
+        this.mesh.position.x += (this.posX - this.mesh.position.x) * lerpFactor;
         this.updatePredictionLine(dt);
+    }
+
+    update(dt, egoSpeedMps, egoWorldZ, egoX, egoSpeedMph) {
+        this.updateInterpolated(dt, egoSpeedMps, egoWorldZ, egoX, egoSpeedMph);
     }
 
     updatePredictionLine(dt) {
@@ -89,9 +155,14 @@ class WorldEntity {
         let pz = this.mesh.position.z;
         let px = this.posX;
 
+        // Prediction shows where entity moves RELATIVE to ego over next 3 seconds.
+        // relSpeedMps > 0 = entity moves away from ego (more negative Z)
+        // relSpeedMps < 0 = entity approaches ego (toward 0 / ego position)
+        const relSpeedMps = ((this.speedMph - AVState.egoState.speedMph) * 1.609) / 3.6;
+
         for (let i = 0; i <= 6; i++) {
             pts.push(new THREE.Vector3(px, 0.2, pz));
-            pz += (this.speedMph * 1.609 / 3.6) * stepT;
+            pz -= relSpeedMps * stepT; // negative Z = further ahead of ego
         }
 
         if (!this.predictionLine) {
@@ -106,7 +177,7 @@ class WorldEntity {
             });
             this.predictionLine = new THREE.Line(geom, mat);
             this.predictionLine.computeLineDistances();
-            scene.add(this.predictionLine);
+            if (scene) scene.add(this.predictionLine);
         } else {
             this.predictionLine.geometry.setFromPoints(pts);
             this.predictionLine.computeLineDistances();
@@ -124,9 +195,9 @@ class WorldEntity {
         if (this.predictionLine) {
             this.predictionLine.geometry.dispose();
             this.predictionLine.material.dispose();
-            scene.remove(this.predictionLine);
+            if (scene) scene.remove(this.predictionLine);
         }
-        scene.remove(this.mesh);
+        globalMeshPool.releaseMesh(this.type, this.mesh);
     }
 
     getDistanceToEgo() {
@@ -399,6 +470,7 @@ function createHighFidelityMesh(type) {
 
 function updateSimulationLoop(dt) {
     if (!renderer || !scene || !camera) return;
+    dt = Math.min(dt || 0.016, 0.05);
 
     const ego = AVState.egoState;
     ego.worldZ += ego.speedMps * dt;
@@ -413,13 +485,26 @@ function updateSimulationLoop(dt) {
     for (const [id, entity] of AVState.worldEntities.entries()) {
         entity.update(dt, ego.speedMps, ego.worldZ, ego.x, ego.speedMph);
 
-        // Recycle distant agents
+        // Recycle distant agents — keep them in a realistic range
         const d = entity.getDistanceToEgo();
-        if (d < -80.0) {
-            entity.worldZ = ego.worldZ + 110.0 + Math.random() * 30.0;
-        } else if (d > 160.0) {
-            entity.worldZ = ego.worldZ - 40.0 - Math.random() * 20.0;
+        if (d < -60.0) {
+            // Agent has fallen far behind — recycle them ahead of ego
+            entity.worldZ = ego.worldZ + 40.0 + Math.random() * 60.0;
+            entity.targetWorldZ = entity.worldZ;
+            // Randomize lane when respawning
+            const laneOptions = [-3.8, 0.0, 3.8, 7.6, -7.6];
+            entity.posX = laneOptions[Math.floor(Math.random() * laneOptions.length)];
+            entity.targetLaneX = entity.posX;
+            // Snap mesh to prevent lerp teleport
+            entity.mesh.position.set(entity.posX, 0, -(entity.worldZ - ego.worldZ));
+        } else if (d > 180.0) {
+            // Agent is very far ahead — recycle them behind ego
+            entity.worldZ = ego.worldZ - 20.0 - Math.random() * 20.0;
+            entity.targetWorldZ = entity.worldZ;
+            // Snap mesh
+            entity.mesh.position.set(entity.posX, 0, -(entity.worldZ - ego.worldZ));
         }
+
     }
 
     // STRICT PHYSICAL COLLISION DETECTION & RIGID IMPACT RESPONSE
@@ -472,50 +557,48 @@ function updateSimulationLoop(dt) {
         });
     }
 
-    // 3D Sensor Raycasts — 360° Tesla-spec detection (Front: 250m, Sides: 80m, Rear: 100m)
+    // 3D Sensor Raycasts — 360° detection using getRelativePosition for correct sector classification
     let fDist = 250.0, lDist = 80.0, rDist = 80.0, rearDist = 100.0;
-    let closestObs = null;       // closest in front cone
-    let closestAnyDir = null;    // closest in ANY direction (360°)
-    let closestAnyDist = 999.0;  // distance to that closest entity
-    let closestAnyDir_label = 'FRONT'; // direction label for HUD
+    let closestObs = null;       // closest FRONT-sector entity (for ACC/AEB)
+    let closestAnyDir = null;    // closest entity in ANY direction
+    let closestAnyDist = 999.0;
+    let closestAnyDir_label = 'FRONT';
 
     for (const [id, e] of AVState.worldEntities.entries()) {
-        const d = e.getDistanceToEgo();
-        const rx = e.posX - ego.x;
-        const absD = Math.abs(d);
-        const absRx = Math.abs(rx);
-        const euclidDist = Math.sqrt(d * d + rx * rx);
+        const rel = getRelativePosition(ego, e);
+        const dLong = rel.longitudinal; // negative = behind, positive = ahead
+        const dLat  = rel.lateral;
+        const dist  = rel.distance;
+        const absDLat = Math.abs(dLat);
 
-        // Front sensor: 250m forward cone (narrow: ±3m lateral)
-        if (d > 0 && d < fDist && absRx < 3.0) {
-            fDist = d;
+        // Front sensor: entities AHEAD in lane (±3.5m lateral)
+        if (rel.isFront && dLong < fDist && absDLat < 3.5) {
+            fDist = dLong;
             closestObs = e;
         }
-        // Rear sensor: 100m behind in lane
-        if (d < 0 && absD < rearDist && absRx < 3.0) rearDist = absD;
-        // Side sensors: 80m lateral window
-        if (absD < 80.0) {
-            if (rx < -1.0 && absRx < lDist) lDist = absRx * 2.8;
-            if (rx >  1.0 && absRx < rDist) rDist = absRx * 2.8;
+        // Rear sensor: entities BEHIND in lane
+        if (rel.isRear && Math.abs(dLong) < rearDist && absDLat < 3.5) {
+            rearDist = Math.abs(dLong);
+        }
+        // Side sensors: entities within 80m longitudinal window, lateral only
+        if (Math.abs(dLong) < 80.0) {
+            if (dLat < -1.5 && absDLat < lDist) lDist = absDLat;
+            if (dLat >  1.5 && absDLat < rDist) rDist = absDLat;
         }
 
-        // 360° closest entity tracker (for all-direction AEB)
-        if (euclidDist < closestAnyDist) {
-            closestAnyDist = euclidDist;
+        // 360° closest tracker
+        if (dist < closestAnyDist) {
+            closestAnyDist = dist;
             closestAnyDir = e;
-            if (d > 0 && absRx < 3.0)        closestAnyDir_label = 'FRONT';
-            else if (d < 0 && absRx < 3.0)   closestAnyDir_label = 'REAR';
-            else if (rx < 0)                  closestAnyDir_label = 'LEFT';
-            else                              closestAnyDir_label = 'RIGHT';
+            closestAnyDir_label = rel.sector;
         }
     }
 
-    AVState.sensorDistances = {
-        front: fDist,
-        left: lDist,
-        right: rDist,
-        rear: rearDist
-    };
+    // Publish sensor distances to shared state for radar/camera overlays
+    AVState.updateSensorDistances(fDist, lDist, rDist, rearDist);
+    // Recompute hazard list with correct sector classification
+    AVState.recomputeHazards();
+
 
     // Update 3D Ray Geometries & Impact Node Spheres
     if (frontSensorRay) {
@@ -569,13 +652,13 @@ function updateSimulationLoop(dt) {
     }
 
     // 360° TIGHT GAP INDIAN TRAFFIC SAFETY NET
-    // In Indian traffic conditions (dense auto-rickshaw, motorcycle, pedestrian streams), 
-    // close clearance (3.0m - 6.0m) is nominal. Emergency AEB triggers ONLY at < 2.8m.
-    const aebFront   = fDist      < 2.8;
-    const aebRear    = rearDist   < 1.8;
-    const aebLeft    = lDist      < 0.9;
-    const aebRight   = rDist      < 0.9;
-    const aebAny     = aebFront || aebRear || aebLeft || aebRight;
+    // In Indian traffic conditions (dense auto-rickshaw, motorcycle, pedestrian streams),
+    // close clearance (3.0m - 6.0m) is nominal. Emergency AEB triggers ONLY at < 2.8m FRONT.
+    // Rear is passive — a vehicle coming from behind cannot emergency-brake the ego.
+    const aebFront   = fDist < 2.8;        // Only stop ego for FRONT threats
+    const aebLeft    = lDist < 0.8;        // Lateral near-miss
+    const aebRight   = rDist < 0.8;
+    const aebAny     = aebFront || aebLeft || aebRight; // Rear never triggers AEB
 
     if (aebAny && closestAnyDir && !isPhysicalImpact) {
         // Critical emergency brake check (< 2.8m collision risk)
@@ -681,39 +764,46 @@ function updateSimulationLoop(dt) {
 
 function spawnEntity(type, dist, posX, speedMph) {
     const egoWorldZ = AVState.egoState.worldZ;
-    const worldZ = egoWorldZ - dist;
+    // dist > 0 means AHEAD of ego in world coords (egoZ increases forward)
+    // dist < 0 means BEHIND ego
+    const worldZ = egoWorldZ + dist;
     const id = `${type}_${Math.floor(Math.random() * 900 + 100)}`;
     const entity = new WorldEntity(id, type, worldZ, posX, speedMph);
     AVState.worldEntities.set(id, entity);
-    console.log(`[Simulation] Spawned ${type} at dist ${dist}m, posX ${posX}m`);
+    console.log(`[Simulation] Spawned ${type} at worldZ=${worldZ.toFixed(1)} (egoZ+${dist}), posX ${posX}m`);
     return entity;
 }
 
 function resetWorldEntities(sourceType) {
-    // Clean existing 3D meshes
+    // Destroy existing entities and return meshes to pool
     for (const [id, e] of AVState.worldEntities.entries()) {
-        if (e.mesh) scene.remove(e.mesh);
+        e.destroy();
     }
     AVState.worldEntities.clear();
 
     if (sourceType === 'kaggle') {
-        // Indian Traffic heterogeneity (auto-rickshaw, motorcycle, truck, pedestrian)
-        spawnEntity('car', 30.0, 0.0, 40.0);
-        spawnEntity('truck', 70.0, 3.8, 35.0);
-        spawnEntity('motorcycle', 15.0, 1.8, 55.0);
-        spawnEntity('cyclist', 18.0, 4.2, 10.0);
-        spawnEntity('pedestrian', 35.0, -4.5, 2.0);
+        // Indian Traffic — dist is AHEAD of ego (+ve = in front)
+        spawnEntity('vehicle', 30.0, 0.0, 40.0);       // lead car
+        spawnEntity('truck',   70.0, 3.8, 35.0);       // slow truck ahead right
+        spawnEntity('motorcycle', 15.0, 1.8, 55.0);    // fast bike close
+        spawnEntity('cyclist', 18.0, 4.2, 10.0);       // slow cyclist right
+        spawnEntity('pedestrian', 35.0, -4.5, 2.0);    // pedestrian far left
+        spawnEntity('vehicle', -25.0, 0.0, 50.0);      // vehicle behind
+        spawnEntity('motorcycle', -15.0, 3.8, 48.0);   // bike behind right
     } else if (sourceType === 'waymo') {
         // Waymo multi-agent highway scenario
-        spawnEntity('car', 25.0, 0.0, 45.0);
-        spawnEntity('car', 45.0, -3.8, 50.0);
-        spawnEntity('truck', 80.0, 3.8, 40.0);
-        spawnEntity('car', -20.0, 0.0, 60.0);
+        spawnEntity('vehicle', 25.0, 0.0, 45.0);
+        spawnEntity('vehicle', 45.0, -3.8, 50.0);
+        spawnEntity('truck',   80.0, 3.8, 40.0);
+        spawnEntity('vehicle', -20.0, 0.0, 55.0);      // overtaking from behind
+        spawnEntity('vehicle', 60.0, 7.6, 48.0);
     } else {
-        // Synthetic default nominal traffic
-        spawnEntity('car', 28.5, 0.0, 42.0);
-        spawnEntity('truck', 75.0, 3.8, 38.0);
-        spawnEntity('motorcycle', 18.0, 1.8, 48.0);
+        // Synthetic default — mixed traffic
+        spawnEntity('vehicle',    28.0,  0.0, 42.0);
+        spawnEntity('truck',      75.0,  3.8, 38.0);
+        spawnEntity('motorcycle', 16.0,  1.8, 48.0);
+        spawnEntity('vehicle',   -28.0,  0.0, 52.0);   // behind, overtaking
+        spawnEntity('cyclist',    22.0,  5.2,  8.0);
     }
 }
 

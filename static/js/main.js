@@ -77,17 +77,6 @@ function mainAnimationLoop(timestamp) {
         renderCameraFeeds();
     }
 
-    // 4. Continuously push live telemetry samples for moving charts (Every ~150ms)
-    if (sampleAccumulator >= 0.15) {
-        sampleAccumulator = 0;
-        const noise = (Math.random() - 0.5) * 3;
-        AVState.addTelemetrySample(
-            ego.speedMph,
-            AVState.latestGuidance.riskLevel === 'HIGH' ? 0.75 : AVState.latestGuidance.riskLevel === 'CRITICAL' ? 0.95 : 0.2,
-            Math.min(100, Math.max(70, Math.round((AVState.latestGuidance.confidence || 0.94) * 100 + noise)))
-        );
-    }
-
     // 5. Render Moving Telemetry & Perception Charts
     if (typeof renderConfidenceChart === 'function') {
         renderConfidenceChart();
@@ -224,7 +213,7 @@ function spawnRealisticScenario(scenarioName) {
             riskLevel: 'HIGH'
         });
     } else if (scenarioName === 'lead_vehicle_brake') {
-        if (typeof spawnEntity === 'function') spawnEntity('car', 22.0, 0.0, 15.0);
+        if (typeof spawnEntity === 'function') spawnEntity('vehicle', 22.0, 0.0, 15.0);
         AVState.setGuidance({
             action: '🚗 TACC DECELERATION — LEAD BRAKE CHECK',
             reason: 'Lead vehicle rapidly decelerated. Matching lead speed with RSS safe headway gap.',
