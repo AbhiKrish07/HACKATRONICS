@@ -364,6 +364,16 @@
                                 Path clear ahead. MPC maintaining centerline trajectory.
                             </div>
                         </div>
+
+                        <!-- Traffic Quick-Spawn Bar (bottom left of 3D viewport) -->
+                        <div style="position:absolute; bottom:10px; left:10px; display:flex; gap:5px; z-index:20; flex-wrap:wrap; max-width:340px;">
+                            <button onclick="spawnTrafficElement('signal')" style="background:rgba(8,10,18,0.88); border:1px solid rgba(255,80,80,0.4); color:#ff5555; font-size:0.6rem; font-weight:700; padding:4px 8px; border-radius:5px; cursor:pointer; font-family:var(--font-mono); letter-spacing:0.05em; backdrop-filter:blur(6px); transition:all 0.15s;" title="Spawn Traffic Signal">🚦 SIGNAL</button>
+                            <button onclick="spawnTrafficElement('pedestrians')" style="background:rgba(8,10,18,0.88); border:1px solid rgba(255,200,0,0.35); color:#ffcc00; font-size:0.6rem; font-weight:700; padding:4px 8px; border-radius:5px; cursor:pointer; font-family:var(--font-mono); letter-spacing:0.05em; backdrop-filter:blur(6px); transition:all 0.15s;" title="Spawn Pedestrian Crossing">🚶 CROSS</button>
+                            <button onclick="spawnTrafficElement('motorcycle_swarm')" style="background:rgba(8,10,18,0.88); border:1px solid rgba(0,200,255,0.3); color:#00ccff; font-size:0.6rem; font-weight:700; padding:4px 8px; border-radius:5px; cursor:pointer; font-family:var(--font-mono); letter-spacing:0.05em; backdrop-filter:blur(6px); transition:all 0.15s;" title="Motorcycle Swarm">🏍️ BIKES</button>
+                            <button onclick="spawnTrafficElement('dense_indian')" style="background:rgba(8,10,18,0.88); border:1px solid rgba(255,150,0,0.4); color:#ff9500; font-size:0.6rem; font-weight:700; padding:4px 8px; border-radius:5px; cursor:pointer; font-family:var(--font-mono); letter-spacing:0.05em; backdrop-filter:blur(6px); transition:all 0.15s;" title="Dense Indian Traffic">🇮🇳 TRAFFIC</button>
+                            <button onclick="spawnTrafficElement('green_signal')" style="background:rgba(8,10,18,0.88); border:1px solid rgba(0,200,100,0.35); color:#00cc66; font-size:0.6rem; font-weight:700; padding:4px 8px; border-radius:5px; cursor:pointer; font-family:var(--font-mono); letter-spacing:0.05em; backdrop-filter:blur(6px); transition:all 0.15s;" title="Signal Green">🟢 GO</button>
+                            <button onclick="spawnTrafficElement('clear_traffic')" style="background:rgba(8,10,18,0.88); border:1px solid rgba(255,255,255,0.15); color:rgba(255,255,255,0.4); font-size:0.6rem; font-weight:700; padding:4px 8px; border-radius:5px; cursor:pointer; font-family:var(--font-mono); letter-spacing:0.05em; backdrop-filter:blur(6px); transition:all 0.15s;" title="Clear All">🧹 CLEAR</button>
+                        </div>
                     </div>
 
                     <!-- Col 2: Right Sensor Panel (Radar + Small Cameras + 360° Arcs) -->
@@ -666,34 +676,117 @@
             </section>
 
             <!-- ============================================================
-                 07 SCENARIOS VIEW (DRIVING MISSION LAUNCHER)
+                 07 SCENARIOS — Tesla-style Traffic Simulation Launcher
                  ============================================================ -->
-            <section id="scenarios" class="view-pane" data-pane="scenarios" style="padding:20px;">
-                <div class="card-auto">
-                    <div class="card-auto-title"><span>🎯 07 EDGE-CASE DRIVING MISSION LAUNCHER</span></div>
-                    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap:16px; margin-top:8px;">
-                        <div class="card-auto" style="background:#0e0e0e;">
-                            <div class="card-auto-title"><span>🚴 Cyclist Overtake</span><span class="header-badge">RSS Safe Pass</span></div>
-                            <div style="font-size:0.72rem; color:var(--text-dim);">Execute 1.5m lateral offset passing buffer around slow cyclist.</div>
-                            <button class="btn-cockpit" style="margin-top:8px;" onclick="spawnRealisticScenario('cyclist_overtake')">Launch Mission</button>
-                        </div>
-                        <div class="card-auto" style="background:#0e0e0e;">
-                            <div class="card-auto-title"><span>🚶 Pedestrian Crossing</span><span class="header-badge" style="color:var(--safety-red);">Critical AEB</span></div>
-                            <div style="font-size:0.72rem; color:var(--text-dim);">Vulnerable Road User walking across ego path. Forces 360° AEB hard stop.</div>
-                            <button class="btn-cockpit btn-cockpit-danger" style="margin-top:8px;" onclick="spawnRealisticScenario('pedestrian_crossing')">Launch Mission</button>
-                        </div>
-                        <div class="card-auto" style="background:#0e0e0e;">
-                            <div class="card-auto-title"><span>🚗 Lead Brake Check</span><span class="header-badge" style="color:var(--safety-amber);">TACC Decel</span></div>
-                            <div style="font-size:0.72rem; color:var(--text-dim);">Lead vehicle rapidly decelerates. Vehicle matches speed with RSS gap.</div>
-                            <button class="btn-cockpit" style="margin-top:8px;" onclick="spawnRealisticScenario('lead_vehicle_brake')">Launch Mission</button>
-                        </div>
-                        <div class="card-auto" style="background:#0e0e0e;">
-                            <div class="card-auto-title"><span>🏍️ Motorcycle Weaving</span><span class="header-badge">High Chaos</span></div>
-                            <div style="font-size:0.72rem; color:var(--text-dim);">Fast motorcycle cutting lanes with lateral trajectory shifts.</div>
-                            <button class="btn-cockpit" style="margin-top:8px;" onclick="spawnRealisticScenario('motorcycle_weaving')">Launch Mission</button>
+            <section id="scenarios" class="view-pane" data-pane="scenarios" style="padding:20px; gap:14px; overflow-y:auto;">
+
+                <!-- Section Header -->
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                    <div>
+                        <div style="font-size:0.65rem; font-weight:800; letter-spacing:0.12em; color:var(--text-subtle);">07 TRAFFIC SIMULATION</div>
+                        <div style="font-size:1.1rem; font-weight:800; color:#fff; margin-top:2px;">Spawn &amp; Control Traffic Elements</div>
+                        <div style="font-size:0.72rem; color:var(--text-dim); margin-top:3px;">Click any card to spawn into the live 3D simulation. Elements respond in real-time with physics &amp; AV decision logic.</div>
+                    </div>
+                    <button onclick="spawnTrafficElement('clear_traffic')" style="background:#0d0f14; border:1px solid var(--border-subtle); color:rgba(255,255,255,0.4); font-size:0.65rem; padding:6px 14px; border-radius:6px; cursor:pointer; font-family:var(--font-mono);">🧹 Clear All</button>
+                </div>
+
+                <!-- Traffic Signal Card -->
+                <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:12px;">
+
+                    <!-- 🚦 Signal -->
+                    <div class="card-auto" style="background:#0d0f14; border-color:rgba(255,80,80,0.25); cursor:pointer; transition:border-color 0.2s, transform 0.15s;" onclick="spawnTrafficElement('signal')" onmouseover="this.style.borderColor='rgba(255,80,80,0.6)'" onmouseout="this.style.borderColor='rgba(255,80,80,0.25)'">
+                        <div style="font-size:2rem; margin-bottom:8px;">🚦</div>
+                        <div style="font-weight:800; color:#fff; font-size:0.85rem; margin-bottom:4px;">Traffic Signal</div>
+                        <div style="font-size:0.68rem; color:var(--text-dim); line-height:1.5; margin-bottom:10px;">Spawn a red/amber/green signal 35m ahead. AV auto-brakes at RED. Cycles every 18s.</div>
+                        <div style="display:flex; gap:6px; align-items:center;">
+                            <span style="background:rgba(255,80,80,0.15); border:1px solid rgba(255,80,80,0.4); color:#ff5555; font-size:0.58rem; font-weight:700; padding:2px 8px; border-radius:20px;">AEB READY</span>
+                            <span style="background:rgba(255,170,0,0.1); border:1px solid rgba(255,170,0,0.3); color:#ffaa00; font-size:0.58rem; padding:2px 8px; border-radius:20px;">AUTO-BRAKE</span>
                         </div>
                     </div>
+
+                    <!-- 🚶 Pedestrians -->
+                    <div class="card-auto" style="background:#0d0f14; border-color:rgba(255,200,0,0.2); cursor:pointer; transition:border-color 0.2s;" onclick="spawnTrafficElement('pedestrians')" onmouseover="this.style.borderColor='rgba(255,200,0,0.5)'" onmouseout="this.style.borderColor='rgba(255,200,0,0.2)'">
+                        <div style="font-size:2rem; margin-bottom:8px;">🚶</div>
+                        <div style="font-weight:800; color:#fff; font-size:0.85rem; margin-bottom:4px;">Pedestrian Crossing</div>
+                        <div style="font-size:0.68rem; color:var(--text-dim); line-height:1.5; margin-bottom:10px;">4 Vulnerable Road Users cross ego path 28m ahead at walking speed (2–3 km/h).</div>
+                        <div style="display:flex; gap:6px;">
+                            <span style="background:rgba(255,200,0,0.12); border:1px solid rgba(255,200,0,0.3); color:#ffcc00; font-size:0.58rem; font-weight:700; padding:2px 8px; border-radius:20px;">4 VRU</span>
+                            <span style="background:rgba(255,80,80,0.1); border:1px solid rgba(255,80,80,0.3); color:#ff5555; font-size:0.58rem; padding:2px 8px; border-radius:20px;">CRITICAL</span>
+                        </div>
+                    </div>
+
+                    <!-- 🚴 Cyclists -->
+                    <div class="card-auto" style="background:#0d0f14; border-color:rgba(0,200,255,0.2); cursor:pointer; transition:border-color 0.2s;" onclick="spawnTrafficElement('cyclists')" onmouseover="this.style.borderColor='rgba(0,200,255,0.5)'" onmouseout="this.style.borderColor='rgba(0,200,255,0.2)'">
+                        <div style="font-size:2rem; margin-bottom:8px;">🚴</div>
+                        <div style="font-weight:800; color:#fff; font-size:0.85rem; margin-bottom:4px;">Cyclists in Traffic</div>
+                        <div style="font-size:0.68rem; color:var(--text-dim); line-height:1.5; margin-bottom:10px;">3 cyclists scattered in left and right lanes at 7–9 km/h. Tests safe passing buffer logic.</div>
+                        <div style="display:flex; gap:6px;">
+                            <span style="background:rgba(0,200,255,0.1); border:1px solid rgba(0,200,255,0.3); color:#00ccff; font-size:0.58rem; font-weight:700; padding:2px 8px; border-radius:20px;">3 AGENTS</span>
+                            <span style="background:rgba(255,170,0,0.1); border:1px solid rgba(255,170,0,0.3); color:#ffaa00; font-size:0.58rem; padding:2px 8px; border-radius:20px;">OVERTAKE</span>
+                        </div>
+                    </div>
+
+                    <!-- 🏍️ Motorcycle Swarm -->
+                    <div class="card-auto" style="background:#0d0f14; border-color:rgba(150,80,255,0.2); cursor:pointer; transition:border-color 0.2s;" onclick="spawnTrafficElement('motorcycle_swarm')" onmouseover="this.style.borderColor='rgba(150,80,255,0.5)'" onmouseout="this.style.borderColor='rgba(150,80,255,0.2)'">
+                        <div style="font-size:2rem; margin-bottom:8px;">🏍️</div>
+                        <div style="font-weight:800; color:#fff; font-size:0.85rem; margin-bottom:4px;">Motorcycle Swarm</div>
+                        <div style="font-size:0.68rem; color:var(--text-dim); line-height:1.5; margin-bottom:10px;">4 motorcycles weaving in all directions at 48–58 km/h. High lateral chaos test.</div>
+                        <div style="display:flex; gap:6px;">
+                            <span style="background:rgba(150,80,255,0.12); border:1px solid rgba(150,80,255,0.3); color:#9050ff; font-size:0.58rem; font-weight:700; padding:2px 8px; border-radius:20px;">4 BIKES</span>
+                            <span style="background:rgba(255,80,80,0.1); border:1px solid rgba(255,80,80,0.3); color:#ff5555; font-size:0.58rem; padding:2px 8px; border-radius:20px;">HIGH CHAOS</span>
+                        </div>
+                    </div>
+
+                    <!-- 🛺 Auto-Rickshaw -->
+                    <div class="card-auto" style="background:#0d0f14; border-color:rgba(255,220,50,0.2); cursor:pointer; transition:border-color 0.2s;" onclick="spawnTrafficElement('autorickshaw')" onmouseover="this.style.borderColor='rgba(255,220,50,0.5)'" onmouseout="this.style.borderColor='rgba(255,220,50,0.2)'">
+                        <div style="font-size:2rem; margin-bottom:8px;">🛺</div>
+                        <div style="font-weight:800; color:#fff; font-size:0.85rem; margin-bottom:4px;">Auto-Rickshaws</div>
+                        <div style="font-size:0.68rem; color:var(--text-dim); line-height:1.5; margin-bottom:10px;">2 slow auto-rickshaws (22–25 km/h) straddling lanes. Core Indian traffic edge case.</div>
+                        <div style="display:flex; gap:6px;">
+                            <span style="background:rgba(255,220,50,0.12); border:1px solid rgba(255,220,50,0.3); color:#ffdc32; font-size:0.58rem; font-weight:700; padding:2px 8px; border-radius:20px;">2 AUTOS</span>
+                            <span style="background:rgba(255,170,0,0.1); border:1px solid rgba(255,170,0,0.3); color:#ffaa00; font-size:0.58rem; padding:2px 8px; border-radius:20px;">INDIA 🇮🇳</span>
+                        </div>
+                    </div>
+
+                    <!-- 🚌 Bus -->
+                    <div class="card-auto" style="background:#0d0f14; border-color:rgba(255,100,0,0.2); cursor:pointer; transition:border-color 0.2s;" onclick="spawnTrafficElement('bus')" onmouseover="this.style.borderColor='rgba(255,100,0,0.5)'" onmouseout="this.style.borderColor='rgba(255,100,0,0.2)'">
+                        <div style="font-size:2rem; margin-bottom:8px;">🚌</div>
+                        <div style="font-weight:800; color:#fff; font-size:0.85rem; margin-bottom:4px;">Bus — Lane Block</div>
+                        <div style="font-size:0.68rem; color:var(--text-dim); line-height:1.5; margin-bottom:10px;">Large slow bus (18 km/h) blocking ego lane 25m ahead. Forces overtake or follow decision.</div>
+                        <div style="display:flex; gap:6px;">
+                            <span style="background:rgba(255,100,0,0.12); border:1px solid rgba(255,100,0,0.3); color:#ff6400; font-size:0.58rem; font-weight:700; padding:2px 8px; border-radius:20px;">LANE BLOCK</span>
+                            <span style="background:rgba(255,170,0,0.1); border:1px solid rgba(255,170,0,0.3); color:#ffaa00; font-size:0.58rem; padding:2px 8px; border-radius:20px;">OVERTAKE</span>
+                        </div>
+                    </div>
+
+                    <!-- 🇮🇳 Dense Indian Traffic -->
+                    <div class="card-auto" style="background:#0d0f14; border-color:rgba(255,150,0,0.25); cursor:pointer; transition:border-color 0.2s; grid-column: span 2;" onclick="spawnTrafficElement('dense_indian')" onmouseover="this.style.borderColor='rgba(255,150,0,0.6)'" onmouseout="this.style.borderColor='rgba(255,150,0,0.25)'">
+                        <div style="display:flex; align-items:flex-start; gap:14px;">
+                            <div style="font-size:2.5rem;">🇮🇳</div>
+                            <div style="flex:1;">
+                                <div style="font-weight:800; color:#fff; font-size:0.92rem; margin-bottom:4px;">Dense Indian Traffic Simulation</div>
+                                <div style="font-size:0.68rem; color:var(--text-dim); line-height:1.5; margin-bottom:10px;">Full Indian traffic scenario: 2 vehicles + 3 motorcycles + 1 cyclist + 1 pedestrian + 1 overtaking car from behind. Tests the full AV-01 perception stack simultaneously.</div>
+                                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                                    <span style="background:rgba(255,150,0,0.12); border:1px solid rgba(255,150,0,0.35); color:#ff9600; font-size:0.58rem; font-weight:700; padding:2px 10px; border-radius:20px;">8 AGENTS</span>
+                                    <span style="background:rgba(255,80,80,0.1); border:1px solid rgba(255,80,80,0.3); color:#ff5555; font-size:0.58rem; padding:2px 10px; border-radius:20px;">MAX DENSITY</span>
+                                    <span style="background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); color:var(--safety-green); font-size:0.58rem; padding:2px 10px; border-radius:20px;">FULL PIPELINE</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
+
+                <!-- Signal Control Row -->
+                <div class="card-auto" style="background:#0d0f14;">
+                    <div class="card-auto-title"><span>🚦 SIGNAL OVERRIDE</span></div>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:4px;">
+                        <button class="btn-cockpit btn-cockpit-danger" onclick="spawnTrafficElement('signal')">🔴 Spawn RED Signal</button>
+                        <button class="btn-cockpit" onclick="spawnTrafficElement('green_signal')">🟢 Force All GREEN</button>
+                        <button class="btn-cockpit" onclick="spawnTrafficElement('clear_traffic')">🧹 Clear All Traffic</button>
+                    </div>
+                </div>
+
             </section>
 
             <!-- ============================================================

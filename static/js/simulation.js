@@ -405,6 +405,9 @@ function initSimulationEngine() {
     }));
     scene.add(radarSweepLine);
 
+    // Tesla-style golden trajectory path line
+    buildEgoPathLine();
+
     scene.add(egoCarGroup);
 
     // Initialize Persistent Multi-Agent Fleet
@@ -721,6 +724,12 @@ function updateSimulationLoop(dt) {
         radarSweepLine.material.opacity = 0.35 + 0.3 * Math.sin(sweepNorm * 2);
     }
 
+    // Tesla-style golden trajectory path (yaw from ego steering)
+    updateEgoPathLine(egoCarGroup, ego.yaw || 0);
+
+    // Update traffic signals (cycling state + ego brake-for-red)
+    updateTrafficSignals(dt, ego.worldZ);
+
     // Helper: rich guidance payload matching evidence-grounded UI card
     function buildGuidance(action, reason, riskLevel, confidence) {
         return { action, reason, riskLevel, confidence: confidence || 0.94 };
@@ -887,3 +896,355 @@ window.updateSimulationLoop = updateSimulationLoop;
 window.spawnEntity = spawnEntity;
 window.resetWorldEntities = resetWorldEntities;
 
+// ============================================================
+// TRAFFIC SIMULATION SYSTEM
+// Inspired by Tesla / Waymo cockpit HUD — spawn-on-demand
+// ============================================================
+
+/** Live traffic signals in the scene */
+const trafficSignals = [];
+
+/** Ego trajectory path line (Tesla-style golden projected path) */
+let egoPathLine = null;
+
+/**
+ * TrafficSignal — 3D traffic light with cycling green→amber→red states.
+ * Placed in world space ahead of the ego car; moves with scene.
+ */
+class TrafficSignal {
+    constructor(worldZ, posX) {
+        this.worldZ = worldZ;
+        this.posX = posX;
+        this.state = 'green';   // green | amber | red
+        this.stateTimer = 0;
+        this.cycleTimes = { green: 18, amber: 4, red: 18 };
+        this.group = new THREE.Group();
+        this._buildMesh();
+        if (scene) scene.add(this.group);
+    }
+
+    _buildMesh() {
+        // Pole
+        const poleMat = new THREE.MeshStandardMaterial({ color: 0x333340, roughness: 0.8, metalness: 0.6 });
+        const poleGeo = new THREE.CylinderGeometry(0.08, 0.10, 4.5, 8);
+        const pole = new THREE.Mesh(poleGeo, poleMat);
+        pole.position.y = 2.25;
+        this.group.add(pole);
+
+        // Housing box
+        const housingMat = new THREE.MeshStandardMaterial({ color: 0x1a1a22, roughness: 0.5 });
+        const housing = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.5, 0.35), housingMat);
+        housing.position.y = 5.0;
+        this.group.add(housing);
+
+        // Three lights: red (top), amber (mid), green (bottom)
+        const lightGeo = new THREE.SphereGeometry(0.14, 12, 12);
+        this._redMat   = new THREE.MeshStandardMaterial({ color: 0x330000, emissive: 0x000000, emissiveIntensity: 0 });
+        this._amberMat = new THREE.MeshStandardMaterial({ color: 0x332200, emissive: 0x000000, emissiveIntensity: 0 });
+        this._greenMat = new THREE.MeshStandardMaterial({ color: 0x003300, emissive: 0x00ff44, emissiveIntensity: 2.5 });
+
+        this._redLight   = new THREE.Mesh(lightGeo, this._redMat);
+        this._amberLight = new THREE.Mesh(lightGeo, this._amberMat);
+        this._greenLight = new THREE.Mesh(lightGeo, this._greenMat);
+
+        this._redLight.position.set(0, 5.5, 0.18);
+        this._amberLight.position.set(0, 5.0, 0.18);
+        this._greenLight.position.set(0, 4.5, 0.18);
+        this.group.add(this._redLight, this._amberLight, this._greenLight);
+
+        // Glow point light
+        this._pointLight = new THREE.PointLight(0x00ff44, 1.5, 12);
+        this._pointLight.position.set(0, 4.5, 1.0);
+        this.group.add(this._pointLight);
+
+        // Label (Text using canvas texture)
+        this._stateLabel = this._makeLabel('GREEN');
+        this._stateLabel.position.set(0, 3.2, 0.18);
+        this.group.add(this._stateLabel);
+    }
+
+    _makeLabel(text) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 128; canvas.height = 32;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#000'; ctx.fillRect(0,0,128,32);
+        ctx.fillStyle = '#00ff88'; ctx.font = 'bold 20px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(text, 64, 22);
+        const tex = new THREE.CanvasTexture(canvas);
+        const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
+        return new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.25), mat);
+    }
+
+    _updateLabel(text, color) {
+        const mesh = this._stateLabel;
+        const canvas = document.createElement('canvas');
+        canvas.width = 128; canvas.height = 32;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#000'; ctx.fillRect(0,0,128,32);
+        ctx.fillStyle = color; ctx.font = 'bold 20px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(text, 64, 22);
+        mesh.material.map = new THREE.CanvasTexture(canvas);
+        mesh.material.map.needsUpdate = true;
+    }
+
+    setState(s) {
+        this.state = s;
+        const off = { emissive: new THREE.Color(0,0,0), emissiveIntensity: 0 };
+        this._redMat.emissive.set(0,0,0);   this._redMat.emissiveIntensity = 0;
+        this._amberMat.emissive.set(0,0,0); this._amberMat.emissiveIntensity = 0;
+        this._greenMat.emissive.set(0,0,0); this._greenMat.emissiveIntensity = 0;
+
+        if (s === 'red') {
+            this._redMat.emissive.setHex(0xff1111);
+            this._redMat.emissiveIntensity = 2.5;
+            this._pointLight.color.setHex(0xff1111);
+            this._pointLight.position.y = 5.5;
+            this._updateLabel('RED', '#ff4444');
+            AVState.setGuidance({
+                action: '🚦 STOP: Red Signal',
+                reason: 'Traffic signal is RED. AV must hold position until green.',
+                riskLevel: 'HIGH',
+                confidence: 0.99
+            });
+        } else if (s === 'amber') {
+            this._amberMat.emissive.setHex(0xffaa00);
+            this._amberMat.emissiveIntensity = 2.2;
+            this._pointLight.color.setHex(0xffaa00);
+            this._pointLight.position.y = 5.0;
+            this._updateLabel('AMBER', '#ffaa00');
+        } else {
+            this._greenMat.emissive.setHex(0x00ff44);
+            this._greenMat.emissiveIntensity = 2.5;
+            this._pointLight.color.setHex(0x00ff44);
+            this._pointLight.position.y = 4.5;
+            this._updateLabel('GREEN', '#00ff88');
+        }
+    }
+
+    update(dt, egoWorldZ) {
+        // Move with the world (stays at fixed worldZ, adjust scene Z)
+        this.group.position.set(
+            this.posX,
+            0,
+            -(this.worldZ - egoWorldZ)
+        );
+
+        // Cycle state
+        this.stateTimer += dt;
+        const dur = this.cycleTimes[this.state];
+        if (this.stateTimer >= dur) {
+            this.stateTimer = 0;
+            const next = { green: 'amber', amber: 'red', red: 'green' };
+            this.setState(next[this.state]);
+        }
+
+        // Auto-brake ego when red and signal is close ahead
+        const dist = -(this.worldZ - egoWorldZ); // negative = ahead
+        if (this.state === 'red' && dist > -30 && dist < -2) {
+            // Gradually slow ego to stop
+            const ego = AVState.egoState;
+            const brakeFactor = Math.max(0, Math.min(1, (-dist - 2) / 20));
+            ego.speedMph = Math.max(0, ego.speedMph - brakeFactor * 8 * dt);
+            ego.speedMps = (ego.speedMph * 1.609) / 3.6;
+        }
+    }
+
+    destroy() {
+        if (this.group && scene) scene.remove(this.group);
+    }
+
+    isOffscreen(egoWorldZ) {
+        return (this.worldZ - egoWorldZ) < -80;
+    }
+}
+
+
+/**
+ * Build the Tesla-style golden trajectory path line for the ego vehicle.
+ * Projects 60m ahead in a gentle curve based on current steering yaw.
+ */
+function buildEgoPathLine() {
+    const pts = [];
+    for (let i = 0; i <= 30; i++) {
+        const t = i / 30;
+        const z = -t * 60;                     // 60m forward (-Z = ahead)
+        const x = 0;                            // straight; curved dynamically each frame
+        pts.push(new THREE.Vector3(x, 0.06, z));
+    }
+    const geo = new THREE.BufferGeometry().setFromPoints(pts);
+    const mat = new THREE.LineBasicMaterial({
+        color: 0xffaa00,
+        transparent: true,
+        opacity: 0.7,
+        linewidth: 2
+    });
+    egoPathLine = new THREE.Line(geo, mat);
+    if (scene) scene.add(egoPathLine);
+}
+
+
+/**
+ * Update the ego path line to curve based on current yaw.
+ * Called from updateSimulationLoop each frame.
+ */
+function updateEgoPathLine(egoCarGroup, yaw) {
+    if (!egoPathLine) return;
+    // Keep centered on ego car
+    egoPathLine.position.set(
+        egoCarGroup.position.x,
+        0.06,
+        egoCarGroup.position.z
+    );
+    egoPathLine.rotation.y = egoCarGroup.rotation.y;
+
+    // Rebuild curve points with curvature from yaw
+    const pts = [];
+    const curvature = yaw * 2.5; // exaggerate yaw slightly for visibility
+    for (let i = 0; i <= 30; i++) {
+        const t = i / 30;
+        const z = -t * 60;
+        const x = curvature * t * t * 30; // quadratic curve: 0 at start, curved ahead
+        pts.push(new THREE.Vector3(x, 0.06, z));
+    }
+    egoPathLine.geometry.setFromPoints(pts);
+
+    // Fade opacity when braking hard
+    const ego = AVState.egoState;
+    egoPathLine.material.opacity = ego.aebActive ? 0.2 : 0.65;
+    egoPathLine.material.color.setHex(ego.aebActive ? 0xff2244 : 0xffaa00);
+}
+
+
+/**
+ * Main traffic element spawner.
+ * Called by UI buttons in Scenarios + floating quick-bar.
+ */
+function spawnTrafficElement(type) {
+    const ego = AVState.egoState;
+
+    switch (type) {
+        case 'signal': {
+            // Place traffic signal 35m ahead
+            const sig = new TrafficSignal(ego.worldZ + 35.0, 0.0);
+            sig.setState('red'); // start red for drama
+            trafficSignals.push(sig);
+            AVState.setGuidance({
+                action: '🚦 STOP: Red Signal ahead at 35m',
+                reason: 'Traffic signal detected in path. AEB ready. Decelerating to halt.',
+                riskLevel: 'HIGH', confidence: 0.99
+            });
+            showSpawnToast('🚦 Traffic Signal Spawned — RED');
+            break;
+        }
+        case 'pedestrians': {
+            // Spawn 4 pedestrians crossing 28m ahead at random x positions
+            const crossZ = 28.0;
+            for (let i = 0; i < 4; i++) {
+                const px = -7.0 + i * 4.5;
+                spawnEntity('pedestrian', crossZ + (Math.random() - 0.5) * 4, px, 2.0 + Math.random());
+            }
+            showSpawnToast('🚶 Pedestrian Crossing — 4 VRUs spawned');
+            break;
+        }
+        case 'cyclists': {
+            spawnEntity('cyclist', 22.0, 4.5, 9.0);
+            spawnEntity('cyclist', 35.0, 5.2, 8.0);
+            spawnEntity('cyclist', 15.0, -4.5, 7.0);
+            showSpawnToast('🚴 3 Cyclists spawned in traffic');
+            break;
+        }
+        case 'autorickshaw': {
+            // Auto-rickshaw = uses vehicle mesh, distinct lane behavior
+            spawnEntity('vehicle', 18.0,  2.0, 25.0);  // slow auto ahead
+            spawnEntity('vehicle', 12.0, -2.5, 22.0);  // auto left
+            showSpawnToast('🛺 2 Auto-Rickshaws spawned');
+            break;
+        }
+        case 'bus': {
+            spawnEntity('truck', 25.0, 0.0, 18.0);  // bus (uses truck mesh — long)
+            showSpawnToast('🚌 Bus spawned ahead — lane blocked');
+            break;
+        }
+        case 'motorcycle_swarm': {
+            spawnEntity('motorcycle', 12.0,  1.5, 52.0);
+            spawnEntity('motorcycle', 18.0, -1.5, 58.0);
+            spawnEntity('motorcycle', 10.0,  3.8, 48.0);
+            spawnEntity('motorcycle',  8.0, -3.8, 55.0);
+            showSpawnToast('🏍️ Motorcycle swarm — 4 bikes');
+            break;
+        }
+        case 'dense_indian': {
+            // Recreate dense Indian traffic
+            spawnEntity('vehicle',    18.0,  0.0, 42.0);
+            spawnEntity('motorcycle', 10.0,  2.0, 55.0);
+            spawnEntity('motorcycle',  8.0, -2.0, 48.0);
+            spawnEntity('vehicle',    28.0, -3.8, 40.0);
+            spawnEntity('cyclist',    22.0,  5.0,  8.0);
+            spawnEntity('pedestrian', 20.0, -6.0,  2.0);
+            spawnEntity('vehicle',   -15.0,  0.0, 50.0);  // behind
+            spawnEntity('motorcycle',-10.0,  3.8, 52.0);  // overtaking from behind
+            showSpawnToast('🇮🇳 Dense Indian Traffic — 8 agents');
+            break;
+        }
+        case 'green_signal': {
+            // Set all existing signals to green
+            trafficSignals.forEach(s => s.setState('green'));
+            showSpawnToast('🟢 All signals set to GREEN');
+            break;
+        }
+        case 'clear_traffic': {
+            // Remove all traffic agents and signals
+            for (const [id, e] of AVState.worldEntities.entries()) e.destroy();
+            AVState.worldEntities.clear();
+            trafficSignals.forEach(s => s.destroy());
+            trafficSignals.length = 0;
+            showSpawnToast('🧹 Traffic cleared');
+            break;
+        }
+    }
+}
+
+/**
+ * Small toast notification for spawn events.
+ */
+function showSpawnToast(msg) {
+    let toast = document.getElementById('spawn-toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'spawn-toast';
+        toast.style.cssText = `
+            position:fixed; bottom:28px; left:50%; transform:translateX(-50%);
+            background:rgba(10,12,20,0.95); border:1px solid rgba(255,255,255,0.12);
+            color:#fff; font-family:'JetBrains Mono',monospace; font-size:0.72rem;
+            font-weight:600; padding:8px 20px; border-radius:30px; z-index:9999;
+            pointer-events:none; transition:opacity 0.4s ease;
+            backdrop-filter:blur(10px); letter-spacing:0.04em;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+        `;
+        document.body.appendChild(toast);
+    }
+    toast.textContent = msg;
+    toast.style.opacity = '1';
+    clearTimeout(toast._to);
+    toast._to = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
+}
+
+// Update all active traffic signals each simulation frame
+function updateTrafficSignals(dt, egoWorldZ) {
+    for (let i = trafficSignals.length - 1; i >= 0; i--) {
+        const sig = trafficSignals[i];
+        sig.update(dt, egoWorldZ);
+        if (sig.isOffscreen(egoWorldZ)) {
+            sig.destroy();
+            trafficSignals.splice(i, 1);
+        }
+    }
+}
+
+window.spawnTrafficElement = spawnTrafficElement;
+window.updateTrafficSignals = updateTrafficSignals;
+window.buildEgoPathLine = buildEgoPathLine;
+window.updateEgoPathLine = updateEgoPathLine;
+window.trafficSignals = trafficSignals;
