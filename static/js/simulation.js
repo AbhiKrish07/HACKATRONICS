@@ -512,8 +512,27 @@ function createHighFidelityMesh(type) {
     return group;
 }
 
+window.isSimulationPaused = false;
+window.toggleSimulationPause = function() {
+    window.isSimulationPaused = !window.isSimulationPaused;
+    const btn = document.getElementById('btn-pause-sim');
+    if (btn) {
+        btn.innerHTML = window.isSimulationPaused ? '▶️ PLAY' : '⏸️ PAUSE';
+        btn.style.color = window.isSimulationPaused ? '#10b981' : '#ff9500';
+        btn.style.borderColor = window.isSimulationPaused ? 'rgba(16,185,129,0.4)' : 'rgba(255,150,0,0.4)';
+    }
+    showSpawnToast(window.isSimulationPaused ? '⏸️ Simulation Paused' : '▶️ Simulation Resumed');
+};
+
 function updateSimulationLoop(dt) {
     if (!renderer || !scene || !camera) return;
+    
+    // Freeze physics if paused, but continue to render the camera frame
+    if (window.isSimulationPaused) {
+        renderer.render(scene, camera);
+        return;
+    }
+
     dt = Math.min(dt || 0.016, 0.05);
 
     const ego = AVState.egoState;
