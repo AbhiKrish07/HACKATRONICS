@@ -219,7 +219,7 @@
         /* Dashboard layout override - 3 columns when decision panel shown */
         .dashboard-split-layout {
             display: grid;
-            grid-template-columns: 1fr 200px 240px; /* Reduced side panel widths to enlarge simulation */
+            grid-template-columns: 1fr 240px 280px;
             gap: 10px;
             height: 100%;
             min-height: 0;
@@ -521,114 +521,29 @@
             </section>
 
             <!-- ============================================================
-                 03 CAMERAS VIEW
+                 02 CAMERAS VIEW — Full-page 4-channel simulated camera feeds
                  ============================================================ -->
-            <section id="cameras" class="view-pane" data-pane="cameras" style="padding:20px; gap:16px;">
-                <!-- Header / Tabs -->
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                    <div style="font-size:1.1rem; font-weight:800; color:#fff; letter-spacing:0.05em;">03 CAMERA &amp; SENSORS</div>
-                    <div style="display:flex; gap:8px;">
-                        <button style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:#fff; padding:6px 16px; border-radius:4px; font-size:0.7rem; cursor:pointer;">Front</button>
-                        <button style="background:transparent; border:1px solid transparent; color:var(--text-subtle); padding:6px 16px; font-size:0.7rem; cursor:pointer;">Front Left</button>
-                        <button style="background:transparent; border:1px solid transparent; color:var(--text-subtle); padding:6px 16px; font-size:0.7rem; cursor:pointer;">Front Right</button>
-                        <button style="background:transparent; border:1px solid transparent; color:var(--text-subtle); padding:6px 16px; font-size:0.7rem; cursor:pointer;">Rear</button>
+            <section id="cameras" class="view-pane" data-pane="cameras" style="padding:16px;">
+                <div class="cam-page-grid">
+                    <!-- Front Primary Feed (large) -->
+                    <div class="cam-main-feed">
+                        <div class="cam-main-label">📷 FRONT PRIMARY (DOMINANT)</div>
+                        <div class="cam-main-badge">1080P · 60FPS</div>
+                        <canvas id="camPageFront" style="width:100%; height:100%; display:block; object-fit:cover;"></canvas>
                     </div>
-                </div>
-
-                <div style="display:flex; gap:16px; height:100%;">
-                    <!-- 4x Grid Camera Feeds -->
-                    <div style="flex:2.5; display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-                        <div style="position:relative; background:#101216; border-radius:10px; overflow:hidden; border:1px solid var(--border-subtle);">
-                            <div style="position:absolute; top:8px; left:12px; color:#fff; font-size:0.75rem; font-weight:600; text-shadow:0 1px 4px #000;">Front</div>
-                            <div style="position:absolute; top:8px; right:12px; color:rgba(255,255,255,0.7); font-size:0.65rem; background:rgba(0,0,0,0.5); padding:2px 6px; border-radius:4px; border:1px solid rgba(255,255,255,0.2);">LIVE</div>
-                            <canvas id="camPageFront" style="width:100%; height:100%; display:block; object-fit:cover;"></canvas>
+                    <!-- Side feeds column -->
+                    <div class="cam-side-col">
+                        <div class="cam-side-feed">
+                            <div class="cam-side-label">FRONT LEFT</div>
+                            <canvas id="camPageLeft" style="width:100%; height:100%; display:block;"></canvas>
                         </div>
-                        <div style="position:relative; background:#101216; border-radius:10px; overflow:hidden; border:1px solid var(--border-subtle);">
-                            <div style="position:absolute; top:8px; left:12px; color:#fff; font-size:0.75rem; font-weight:600; text-shadow:0 1px 4px #000;">Front Left</div>
-                            <div style="position:absolute; top:8px; right:12px; color:rgba(255,255,255,0.7); font-size:0.65rem; background:rgba(0,0,0,0.5); padding:2px 6px; border-radius:4px; border:1px solid rgba(255,255,255,0.2);">LIVE</div>
-                            <canvas id="camPageLeft" style="width:100%; height:100%; display:block; object-fit:cover;"></canvas>
+                        <div class="cam-side-feed">
+                            <div class="cam-side-label">FRONT RIGHT</div>
+                            <canvas id="camPageRight" style="width:100%; height:100%; display:block;"></canvas>
                         </div>
-                        <div style="position:relative; background:#101216; border-radius:10px; overflow:hidden; border:1px solid var(--border-subtle);">
-                            <div style="position:absolute; top:8px; left:12px; color:#fff; font-size:0.75rem; font-weight:600; text-shadow:0 1px 4px #000;">Front Right</div>
-                            <div style="position:absolute; top:8px; right:12px; color:rgba(255,255,255,0.7); font-size:0.65rem; background:rgba(0,0,0,0.5); padding:2px 6px; border-radius:4px; border:1px solid rgba(255,255,255,0.2);">LIVE</div>
-                            <canvas id="camPageRight" style="width:100%; height:100%; display:block; object-fit:cover;"></canvas>
-                        </div>
-                        <div style="position:relative; background:#101216; border-radius:10px; overflow:hidden; border:1px solid var(--border-subtle);">
-                            <div style="position:absolute; top:8px; left:12px; color:#fff; font-size:0.75rem; font-weight:600; text-shadow:0 1px 4px #000;">Rear</div>
-                            <div style="position:absolute; top:8px; right:12px; color:rgba(255,255,255,0.7); font-size:0.65rem; background:rgba(0,0,0,0.5); padding:2px 6px; border-radius:4px; border:1px solid rgba(255,255,255,0.2);">LIVE</div>
-                            <canvas id="camPageRear" style="width:100%; height:100%; display:block; object-fit:cover;"></canvas>
-                        </div>
-                    </div>
-
-                    <!-- Sensor Status List -->
-                    <div style="flex:1; background:#0b0d14; border:1px solid rgba(255,255,255,0.05); border-radius:10px; padding:16px; display:flex; flex-direction:column;">
-                        <div style="font-size:0.75rem; font-weight:700; color:var(--text-dim); margin-bottom:16px; letter-spacing:0.05em;">SENSOR STATUS</div>
-                        
-                        <div style="display:flex; flex-direction:column; gap:12px; flex:1;">
-                            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.7rem; color:#fff;">
-                                <span>Front Camera</span>
-                                <div style="display:flex; gap:12px; align-items:center;">
-                                    <span style="border:1px solid rgba(0,255,100,0.3); color:#00ff66; padding:2px 8px; border-radius:12px; font-size:0.6rem;">ACTIVE</span>
-                                    <span style="color:var(--text-dim); width:28px; text-align:right;">36 m</span>
-                                </div>
-                            </div>
-                            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.7rem; color:#fff;">
-                                <span>Front Left Camera</span>
-                                <div style="display:flex; gap:12px; align-items:center;">
-                                    <span style="border:1px solid rgba(0,255,100,0.3); color:#00ff66; padding:2px 8px; border-radius:12px; font-size:0.6rem;">ACTIVE</span>
-                                    <span style="color:var(--text-dim); width:28px; text-align:right;">28 m</span>
-                                </div>
-                            </div>
-                            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.7rem; color:#fff;">
-                                <span>Front Right Camera</span>
-                                <div style="display:flex; gap:12px; align-items:center;">
-                                    <span style="border:1px solid rgba(0,255,100,0.3); color:#00ff66; padding:2px 8px; border-radius:12px; font-size:0.6rem;">ACTIVE</span>
-                                    <span style="color:var(--text-dim); width:28px; text-align:right;">31 m</span>
-                                </div>
-                            </div>
-                            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.7rem; color:#fff;">
-                                <span>LiDAR</span>
-                                <div style="display:flex; gap:12px; align-items:center;">
-                                    <span style="border:1px solid rgba(0,255,100,0.3); color:#00ff66; padding:2px 8px; border-radius:12px; font-size:0.6rem;">ACTIVE</span>
-                                    <span style="color:var(--text-dim); width:28px; text-align:right;">52 m</span>
-                                </div>
-                            </div>
-                            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.7rem; color:#fff;">
-                                <span>Radar Front</span>
-                                <div style="display:flex; gap:12px; align-items:center;">
-                                    <span style="border:1px solid rgba(0,255,100,0.3); color:#00ff66; padding:2px 8px; border-radius:12px; font-size:0.6rem;">ACTIVE</span>
-                                    <span style="color:var(--text-dim); width:28px; text-align:right;">48 m</span>
-                                </div>
-                            </div>
-                            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.7rem; color:#fff;">
-                                <span>Left Blind Zone</span>
-                                <div style="display:flex; gap:12px; align-items:center;">
-                                    <span style="border:1px solid rgba(255,150,0,0.3); color:#ff9500; padding:2px 8px; border-radius:12px; font-size:0.6rem;">DEGRADED</span>
-                                    <span style="color:var(--text-dim); width:28px; text-align:right;">--</span>
-                                </div>
-                            </div>
-                            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.7rem; color:#fff;">
-                                <span>Right Blind Zone</span>
-                                <div style="display:flex; gap:12px; align-items:center;">
-                                    <span style="border:1px solid rgba(0,255,100,0.3); color:#00ff66; padding:2px 8px; border-radius:12px; font-size:0.6rem;">ACTIVE</span>
-                                    <span style="color:var(--text-dim); width:28px; text-align:right;">--</span>
-                                </div>
-                            </div>
-                            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.7rem; color:#fff;">
-                                <span>Rear Radar</span>
-                                <div style="display:flex; gap:12px; align-items:center;">
-                                    <span style="border:1px solid rgba(0,255,100,0.3); color:#00ff66; padding:2px 8px; border-radius:12px; font-size:0.6rem;">ACTIVE</span>
-                                    <span style="color:var(--text-dim); width:28px; text-align:right;">22 m</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Legend -->
-                        <div style="display:flex; justify-content:center; gap:16px; margin-top:20px; padding-top:16px; border-top:1px solid rgba(255,255,255,0.05); font-size:0.65rem; color:var(--text-subtle);">
-                            <div style="display:flex; align-items:center; gap:4px;"><div style="width:8px; height:8px; border-radius:50%; border:1px solid #00ff66;"></div> ACTIVE</div>
-                            <div style="display:flex; align-items:center; gap:4px;"><div style="width:8px; height:8px; border-radius:50%; border:1px solid #ff9500; background:rgba(255,150,0,0.2);"></div> DEGRADED</div>
-                            <div style="display:flex; align-items:center; gap:4px;"><div style="width:8px; height:8px; border-radius:50%; border:1px solid #666; background:rgba(255,255,255,0.1);"></div> UNKNOWN</div>
-                            <div style="display:flex; align-items:center; gap:4px;"><div style="width:8px; height:8px; border-radius:50%; border:1px solid #ff3333; background:rgba(255,50,50,0.2);"></div> OFFLINE</div>
+                        <div class="cam-side-feed">
+                            <div class="cam-side-label">REAR CAMERA</div>
+                            <canvas id="camPageRear" style="width:100%; height:100%; display:block;"></canvas>
                         </div>
                     </div>
                 </div>
@@ -663,287 +578,70 @@
             </section>
 
             <!-- ============================================================
-                 05 DECISIONS VIEW
+                 04 DECISIONS VIEW (AV-01 REASONING CHAIN & THREAT MATRIX)
                  ============================================================ -->
-            <section id="decisions" class="view-pane" data-pane="decisions" style="padding:20px; overflow-y:auto;">
-                <div style="font-size:1.1rem; font-weight:800; color:#fff; letter-spacing:0.05em; margin-bottom:16px;">05 DECISIONS</div>
-                
-                <div style="display:flex; gap:20px;">
-                    <!-- Left Column: Pipeline Pipeline -->
-                    <div style="flex:0 0 280px; display:flex; flex-direction:column; gap:8px;">
-                        
-                        <div style="background:#0b0d14; border:1px solid rgba(150,80,255,0.4); border-radius:8px; padding:12px; text-align:center;">
-                            <div style="font-size:0.65rem; color:rgba(150,80,255,0.8); font-weight:600; margin-bottom:4px;">ENVIRONMENT</div>
-                            <div style="font-size:0.75rem; color:#9050ff;">Detected Motorcycle</div>
-                            <div style="font-size:0.7rem; color:var(--text-dim);">14.2 m away</div>
-                            <div style="font-size:0.7rem; color:var(--text-dim);">Lateral velocity: High</div>
-                        </div>
-
-                        <div style="text-align:center; color:rgba(255,255,255,0.2);">↓</div>
-
-                        <div style="background:#0b0d14; border:1px solid rgba(255,100,50,0.4); border-radius:8px; padding:12px; text-align:center;">
-                            <div style="font-size:0.65rem; color:rgba(255,100,50,0.8); font-weight:600; margin-bottom:4px;">RISK ASSESSMENT</div>
-                            <div style="font-size:1rem; color:#ff6432; font-weight:700;">HIGH</div>
-                            <div style="font-size:0.7rem; color:var(--text-dim);">TTC: 1.8 s</div>
-                        </div>
-
-                        <div style="text-align:center; color:rgba(255,255,255,0.2);">↓</div>
-
-                        <div style="background:#0b0d14; border:1px solid rgba(255,150,0,0.4); border-radius:8px; padding:16px 12px; text-align:center;">
-                            <div style="font-size:0.65rem; color:rgba(255,150,0,0.8); font-weight:600; margin-bottom:6px;">RECOMMENDATION</div>
-                            <div style="font-size:1.1rem; color:#ff9500; font-weight:800;">REDUCE SPEED</div>
-                        </div>
-
-                        <div style="text-align:center; color:rgba(255,255,255,0.2);">↓</div>
-
-                        <div style="background:#0b0d14; border:1px solid rgba(0,255,150,0.4); border-radius:8px; padding:12px; text-align:center;">
-                            <div style="font-size:0.65rem; color:rgba(0,255,150,0.8); font-weight:600; margin-bottom:4px;">CONFIDENCE</div>
-                            <div style="font-size:1.1rem; color:#00ff96; font-weight:700;">91%</div>
-                        </div>
-
-                        <div style="text-align:center; color:rgba(255,255,255,0.2);">↓</div>
-
-                        <div style="background:#0b0d14; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:12px; text-align:center;">
-                            <div style="font-size:0.65rem; color:var(--text-subtle); font-weight:600; margin-bottom:8px;">REASONING</div>
-                            <div style="font-size:0.65rem; color:var(--text-dim); line-height:1.4; text-align:left;">Motorcycle is weaving into ego lane. High lateral velocity with lane overlap. Collision possible within 1.8s if speed is not reduced.</div>
-                        </div>
-
-                        <div style="text-align:center; color:rgba(255,255,255,0.2);">↓</div>
-
-                        <div style="background:#0b0d14; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:12px; text-align:center;">
-                            <div style="font-size:0.65rem; color:var(--text-subtle); font-weight:600; margin-bottom:4px;">OUTCOME</div>
-                            <div style="font-size:0.7rem; color:#fff;">MPC reduced target speed by 22%</div>
-                        </div>
+            <section id="decisions" class="view-pane" data-pane="decisions" style="padding:20px; gap:16px;">
+                <div class="card-auto">
+                    <div class="card-auto-title">
+                        <span>⚡ 04 AV-01 REASONING CHAIN (SENSE → RISK → PLAN → RECOMMEND → EXPLAIN)</span>
+                        <span class="header-badge" id="decisions-conf-tag">94% CONFIDENCE</span>
                     </div>
+                    <div id="justificationsList-dec"></div>
+                </div>
 
-                    <!-- Right Column: Tables -->
-                    <div style="flex:1; display:flex; flex-direction:column; gap:20px;">
-                        
-                        <div style="background:#0b0d14; border:1px solid rgba(255,255,255,0.05); border-radius:10px; padding:16px;">
-                            <div style="font-size:0.75rem; font-weight:700; color:var(--text-dim); margin-bottom:12px; letter-spacing:0.05em;">THREAT MATRIX</div>
-                            <table style="width:100%; border-collapse:collapse; text-align:left; font-size:0.7rem;">
-                                <thead>
-                                    <tr style="border-bottom:1px solid rgba(255,255,255,0.1); color:var(--text-subtle);">
-                                        <th style="padding:8px 4px;">ID</th>
-                                        <th style="padding:8px 4px;">Type</th>
-                                        <th style="padding:8px 4px;">Distance</th>
-                                        <th style="padding:8px 4px;">Speed</th>
-                                        <th style="padding:8px 4px;">Lane</th>
-                                        <th style="padding:8px 4px;">Risk</th>
-                                        <th style="padding:8px 4px;">Confidence</th>
-                                        <th style="padding:8px 4px;">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
-                                        <td style="padding:10px 4px; color:#ff4444;">motorcycle_07</td>
-                                        <td style="padding:10px 4px; color:#ff4444;">Motorcycle</td>
-                                        <td style="padding:10px 4px; color:#ff4444;">14.2 m</td>
-                                        <td style="padding:10px 4px; color:var(--text-dim);">54 km/h</td>
-                                        <td style="padding:10px 4px; color:var(--text-dim);">1</td>
-                                        <td style="padding:10px 4px; color:#ff4444; font-weight:700;">HIGH</td>
-                                        <td style="padding:10px 4px; color:#ffdd00;">91%</td>
-                                        <td style="padding:10px 4px; color:#ff4444;">Reduce Speed</td>
-                                    </tr>
-                                    <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
-                                        <td style="padding:10px 4px; color:var(--text-dim);">cyclist_02</td>
-                                        <td style="padding:10px 4px; color:var(--text-dim);">Cyclist</td>
-                                        <td style="padding:10px 4px; color:var(--text-dim);">18.7 m</td>
-                                        <td style="padding:10px 4px; color:var(--text-dim);">18 km/h</td>
-                                        <td style="padding:10px 4px; color:var(--text-dim);">1</td>
-                                        <td style="padding:10px 4px; color:#ffaa00; font-weight:700;">MEDIUM</td>
-                                        <td style="padding:10px 4px; color:#ffaa00;">74%</td>
-                                        <td style="padding:10px 4px; color:var(--text-subtle);">Monitor</td>
-                                    </tr>
-                                    <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
-                                        <td style="padding:10px 4px; color:var(--text-dim);">car_12</td>
-                                        <td style="padding:10px 4px; color:var(--text-dim);">Car</td>
-                                        <td style="padding:10px 4px; color:var(--text-dim);">31.4 m</td>
-                                        <td style="padding:10px 4px; color:var(--text-dim);">45 km/h</td>
-                                        <td style="padding:10px 4px; color:var(--text-dim);">0</td>
-                                        <td style="padding:10px 4px; color:#00ff66; font-weight:700;">LOW</td>
-                                        <td style="padding:10px 4px; color:#00ff66;">52%</td>
-                                        <td style="padding:10px 4px; color:var(--text-subtle);">Monitor</td>
-                                    </tr>
-                                    <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
-                                        <td style="padding:10px 4px; color:var(--text-dim);">truck_03</td>
-                                        <td style="padding:10px 4px; color:var(--text-dim);">Truck</td>
-                                        <td style="padding:10px 4px; color:var(--text-dim);">46.5 m</td>
-                                        <td style="padding:10px 4px; color:var(--text-dim);">32 km/h</td>
-                                        <td style="padding:10px 4px; color:var(--text-dim);">-1</td>
-                                        <td style="padding:10px 4px; color:#00ff66; font-weight:700;">LOW</td>
-                                        <td style="padding:10px 4px; color:#00ff66;">61%</td>
-                                        <td style="padding:10px 4px; color:var(--text-subtle);">Monitor</td>
-                                    </tr>
-                                    <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
-                                        <td style="padding:10px 4px; color:var(--text-dim);">auto_05</td>
-                                        <td style="padding:10px 4px; color:var(--text-dim);">Auto-Rickshaw</td>
-                                        <td style="padding:10px 4px; color:var(--text-dim);">52.1 m</td>
-                                        <td style="padding:10px 4px; color:var(--text-dim);">28 km/h</td>
-                                        <td style="padding:10px 4px; color:var(--text-dim);">-1</td>
-                                        <td style="padding:10px 4px; color:#00ff66; font-weight:700;">LOW</td>
-                                        <td style="padding:10px 4px; color:#00ff66;">56%</td>
-                                        <td style="padding:10px 4px; color:var(--text-subtle);">Monitor</td>
-                                    </tr>
-                                    <tr>
-                                        <td style="padding:10px 4px; color:var(--text-dim);">ped_01</td>
-                                        <td style="padding:10px 4px; color:var(--text-dim);">Pedestrian</td>
-                                        <td style="padding:10px 4px; color:var(--text-dim);">22.3 m</td>
-                                        <td style="padding:10px 4px; color:var(--text-dim);">3 km/h</td>
-                                        <td style="padding:10px 4px; color:var(--text-dim);">0</td>
-                                        <td style="padding:10px 4px; color:#ffaa00; font-weight:700;">MEDIUM</td>
-                                        <td style="padding:10px 4px; color:#ffaa00;">68%</td>
-                                        <td style="padding:10px 4px; color:var(--text-subtle);">Monitor</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <div style="background:#0b0d14; border:1px solid rgba(255,255,255,0.05); border-radius:10px; padding:16px;">
-                            <div style="font-size:0.75rem; font-weight:700; color:var(--text-dim); margin-bottom:12px; letter-spacing:0.05em;">RECENT DECISIONS</div>
-                            <table style="width:100%; border-collapse:collapse; text-align:left; font-size:0.7rem;">
-                                <tbody>
-                                    <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
-                                        <td style="padding:10px 4px; color:var(--text-subtle);">10:24:30</td>
-                                        <td style="padding:10px 4px; color:#ff4444; font-weight:700;">REDUCE SPEED</td>
-                                        <td style="padding:10px 4px; color:#ff4444; font-weight:700;">HIGH</td>
-                                        <td style="padding:10px 4px; color:#ffdd00;">91%</td>
-                                        <td style="padding:10px 4px; color:var(--text-dim);">Motorcycle_07 weaving into lane</td>
-                                    </tr>
-                                    <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
-                                        <td style="padding:10px 4px; color:var(--text-subtle);">10:23:18</td>
-                                        <td style="padding:10px 4px; color:#fff;">MONITOR</td>
-                                        <td style="padding:10px 4px; color:#ffaa00; font-weight:700;">MEDIUM</td>
-                                        <td style="padding:10px 4px; color:#ffaa00;">74%</td>
-                                        <td style="padding:10px 4px; color:var(--text-dim);">Cyclist ahead in lane</td>
-                                    </tr>
-                                    <tr>
-                                        <td style="padding:10px 4px; color:var(--text-subtle);">10:22:04</td>
-                                        <td style="padding:10px 4px; color:#fff;">HOLD LANE</td>
-                                        <td style="padding:10px 4px; color:#00ff66; font-weight:700;">LOW</td>
-                                        <td style="padding:10px 4px; color:#00ff66;">65%</td>
-                                        <td style="padding:10px 4px; color:var(--text-dim);">Path clear</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
+                <div class="card-auto">
+                    <div class="card-auto-title">
+                        <span>🎯 MULTI-AGENT PERCEPTION THREAT MATRIX</span>
+                        <span style="font-family:var(--font-mono); color:var(--text-dim);" id="risk-count-badge-dec">7 ENTITIES TRACKED</span>
                     </div>
+                    <div id="hazardsList-dec"></div>
                 </div>
             </section>
 
             <!-- ============================================================
-                 06 ANALYTICS VIEW
+                 05 ANALYTICS VIEW (ACCUMULATED LIVE TELEMETRY CHARTS)
                  ============================================================ -->
-            <section id="analytics" class="view-pane" data-pane="analytics" style="padding:20px; overflow-y:auto; display:flex; flex-direction:column; gap:16px;">
-                <div style="font-size:1.1rem; font-weight:800; color:#fff; letter-spacing:0.05em; margin-bottom:4px;">05 ANALYTICS</div>
-
-                <!-- Top Row: Charts -->
-                <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:12px;">
-                    <div style="background:#0b0d14; border:1px solid rgba(255,255,255,0.05); border-radius:8px; padding:12px;">
-                        <div style="font-size:0.7rem; color:var(--text-subtle); margin-bottom:8px;">Confidence Over Time</div>
-                        <div style="height:90px; position:relative;">
-                            <!-- Placeholder for line chart -->
-                            <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 100">
-                                <polyline fill="none" stroke="#9050ff" stroke-width="2" points="0,40 10,60 20,70 30,70 40,50 50,40 60,60 70,30 80,45 90,35 100,20"/>
-                                <circle cx="100" cy="20" r="3" fill="#9050ff" />
-                            </svg>
-                            <div style="position:absolute; right:0; top:0; background:rgba(150,80,255,0.2); border:1px solid rgba(150,80,255,0.5); padding:2px 4px; border-radius:4px; font-size:0.6rem; color:#d4b3ff;">91%</div>
-                        </div>
+            <section id="analytics" class="view-pane" data-pane="analytics" style="padding:20px; gap:16px;">
+                <div class="analytics-grid-auto">
+                    <div class="stat-box-auto">
+                        <div class="stat-label-auto">Trip Duration</div>
+                        <div class="stat-val-auto" id="trip-timer-an">01:24</div>
                     </div>
-                    
-                    <div style="background:#0b0d14; border:1px solid rgba(255,255,255,0.05); border-radius:8px; padding:12px;">
-                        <div style="font-size:0.7rem; color:var(--text-subtle); margin-bottom:8px;">Risk Level Over Time</div>
-                        <div style="height:90px; position:relative; display:flex;">
-                            <!-- y axis -->
-                            <div style="display:flex; flex-direction:column; justify-content:space-between; font-size:0.45rem; padding-right:4px;">
-                                <span style="color:#ff4444;">CRITICAL</span>
-                                <span style="color:#ffaa00;">HIGH</span>
-                                <span style="color:#ffcc00;">MEDIUM</span>
-                                <span style="color:#00ff66;">LOW</span>
-                            </div>
-                            <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 100">
-                                <polyline fill="none" stroke="#ffaa00" stroke-width="1.5" stroke-dasharray="2,2" points="0,50 20,40 40,70 60,30 80,45 100,55"/>
-                                <polyline fill="none" stroke="#00ff66" stroke-width="1.5" stroke-dasharray="2,2" points="0,80 20,75 40,60 60,85 80,70 100,85"/>
-                                <polyline fill="none" stroke="#ff4444" stroke-width="1.5" stroke-dasharray="2,2" points="70,90 80,40 90,30 100,45"/>
-                            </svg>
-                        </div>
+                    <div class="stat-box-auto">
+                        <div class="stat-label-auto">Hazard Alerts</div>
+                        <div class="stat-val-auto" id="trip-alerts-an" style="color:var(--safety-amber);">3</div>
                     </div>
-
-                    <div style="background:#0b0d14; border:1px solid rgba(255,255,255,0.05); border-radius:8px; padding:12px;">
-                        <div style="font-size:0.7rem; color:var(--text-subtle); margin-bottom:8px;">Speed Over Time (km/h)</div>
-                        <div style="height:90px; position:relative;">
-                            <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 100">
-                                <polyline fill="none" stroke="#00ccff" stroke-width="2" points="0,60 10,50 20,45 30,55 40,40 50,55 60,35 70,45 80,55 90,40 100,60"/>
-                            </svg>
-                        </div>
+                    <div class="stat-box-auto">
+                        <div class="stat-label-auto">Path Deviation</div>
+                        <div class="stat-val-auto" id="trip-dev-an" style="color:var(--safety-green);">0.12m</div>
                     </div>
-
-                    <div style="background:#0b0d14; border:1px solid rgba(255,255,255,0.05); border-radius:8px; padding:12px;">
-                        <div style="font-size:0.7rem; color:var(--text-subtle); margin-bottom:8px;">Path Deviation (m)</div>
-                        <div style="height:90px; position:relative;">
-                            <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 100">
-                                <polyline fill="none" stroke="#ffaa00" stroke-width="1.5" points="0,60 5,45 10,55 15,40 20,55 25,40 30,50 35,45 40,60 45,40 50,55 55,40 60,50 65,45 70,60 75,40 80,55 85,45 90,60 95,45 100,55"/>
-                            </svg>
-                        </div>
+                    <div class="stat-box-auto">
+                        <div class="stat-label-auto">Pipeline Latency</div>
+                        <div class="stat-val-auto" id="val-latency-an" style="color:#fff;">42 ms</div>
                     </div>
                 </div>
 
-                <!-- Middle Row: Metrics -->
-                <div style="display:grid; grid-template-columns:repeat(6, 1fr); gap:12px;">
-                    <div style="background:#0b0d14; border:1px solid rgba(255,255,255,0.05); border-radius:8px; padding:16px;">
-                        <div style="font-size:0.65rem; color:var(--text-subtle); margin-bottom:8px;">Active Agents</div>
-                        <div style="font-size:1.4rem; font-weight:700; color:#00ff66;">14</div>
-                    </div>
-                    <div style="background:#0b0d14; border:1px solid rgba(255,255,255,0.05); border-radius:8px; padding:16px;">
-                        <div style="font-size:0.65rem; color:var(--text-subtle); margin-bottom:8px;">Hazards Detected</div>
-                        <div style="font-size:1.4rem; font-weight:700; color:#ff4444;">7</div>
-                    </div>
-                    <div style="background:#0b0d14; border:1px solid rgba(255,255,255,0.05); border-radius:8px; padding:16px;">
-                        <div style="font-size:0.65rem; color:var(--text-subtle); margin-bottom:8px;">Avg. TTC</div>
-                        <div style="font-size:1.4rem; font-weight:700; color:#00ff66;">2.6 s</div>
-                    </div>
-                    <div style="background:#0b0d14; border:1px solid rgba(255,255,255,0.05); border-radius:8px; padding:16px;">
-                        <div style="font-size:0.65rem; color:var(--text-subtle); margin-bottom:8px;">Alerts Raised</div>
-                        <div style="font-size:1.4rem; font-weight:700; color:#ff4444;">3</div>
-                    </div>
-                    <div style="background:#0b0d14; border:1px solid rgba(255,255,255,0.05); border-radius:8px; padding:16px;">
-                        <div style="font-size:0.65rem; color:var(--text-subtle); margin-bottom:8px;">Sensor Gaps</div>
-                        <div style="font-size:1.4rem; font-weight:700; color:#ffaa00;">1</div>
-                    </div>
-                    <div style="background:#0b0d14; border:1px solid rgba(255,255,255,0.05); border-radius:8px; padding:16px;">
-                        <div style="font-size:0.65rem; color:var(--text-subtle); margin-bottom:8px;">Sensor Conflicts</div>
-                        <div style="font-size:1.4rem; font-weight:700; color:#ff4444;">1</div>
+                <div class="card-auto">
+                    <div class="card-auto-title"><span>📈 60 FPS ACCUMULATED TELEMETRY STREAMS</span></div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                        <div>
+                            <div style="font-size:0.7rem; color:var(--text-subtle); margin-bottom:4px;">Velocity vs Threat Risk</div>
+                            <canvas id="chart-speed-risk" width="400" height="140" style="width:100%; height:130px; background:#080808; border-radius:6px; border:1px solid var(--border-subtle);"></canvas>
+                        </div>
+                        <div>
+                            <div style="font-size:0.7rem; color:var(--text-subtle); margin-bottom:4px;">Perception Model Confidence (%)</div>
+                            <canvas id="chart-confidence-time" width="400" height="140" style="width:100%; height:130px; background:#080808; border-radius:6px; border:1px solid var(--border-subtle);"></canvas>
+                        </div>
+                        <div>
+                            <div style="font-size:0.7rem; color:var(--text-subtle); margin-bottom:4px;">360° LiDAR Sensor Proximity (m)</div>
+                            <canvas id="chart-lidar-proximity" width="400" height="140" style="width:100%; height:130px; background:#080808; border-radius:6px; border:1px solid var(--border-subtle);"></canvas>
+                        </div>
+                        <div>
+                            <div style="font-size:0.7rem; color:var(--text-subtle); margin-bottom:4px;">Object Density &amp; LPU Latency (ms)</div>
+                            <canvas id="chart-density-latency" width="400" height="140" style="width:100%; height:130px; background:#080808; border-radius:6px; border:1px solid var(--border-subtle);"></canvas>
+                        </div>
                     </div>
                 </div>
-
-                <!-- Bottom Row: Metrics -->
-                <div style="display:grid; grid-template-columns:repeat(6, 1fr); gap:12px;">
-                    <div style="background:#0b0d14; border:1px solid rgba(255,255,255,0.05); border-radius:8px; padding:16px;">
-                        <div style="font-size:0.65rem; color:var(--text-subtle); margin-bottom:8px;">Avg. Confidence</div>
-                        <div style="font-size:1.4rem; font-weight:700; color:#00ff66;">87%</div>
-                    </div>
-                    <div style="background:#0b0d14; border:1px solid rgba(255,255,255,0.05); border-radius:8px; padding:16px;">
-                        <div style="font-size:0.65rem; color:var(--text-subtle); margin-bottom:8px;">Trip Time</div>
-                        <div style="font-size:1.4rem; font-weight:700; color:#fff;">01:24:33</div>
-                    </div>
-                    <div style="background:#0b0d14; border:1px solid rgba(255,255,255,0.05); border-radius:8px; padding:16px;">
-                        <div style="font-size:0.65rem; color:var(--text-subtle); margin-bottom:8px;">Distance</div>
-                        <div style="font-size:1.4rem; font-weight:700; color:#fff;">18.7 km</div>
-                    </div>
-                    <div style="background:#0b0d14; border:1px solid rgba(255,255,255,0.05); border-radius:8px; padding:16px;">
-                        <div style="font-size:0.65rem; color:var(--text-subtle); margin-bottom:8px;">Avg. Speed</div>
-                        <div style="font-size:1.4rem; font-weight:700; color:#fff;">42 km/h</div>
-                    </div>
-                    <div style="background:#0b0d14; border:1px solid rgba(255,255,255,0.05); border-radius:8px; padding:16px;">
-                        <div style="font-size:0.65rem; color:var(--text-subtle); margin-bottom:8px;">Avg. Latency</div>
-                        <div style="font-size:1.4rem; font-weight:700; color:#fff;">96 ms</div>
-                    </div>
-                    <div style="background:#0b0d14; border:1px solid rgba(255,255,255,0.05); border-radius:8px; padding:16px;">
-                        <div style="font-size:0.65rem; color:var(--text-subtle); margin-bottom:8px;">Critical Events</div>
-                        <div style="font-size:1.4rem; font-weight:700; color:#00ccff;">0</div>
-                    </div>
-                </div>
-
             </section>
 
             <!-- ============================================================

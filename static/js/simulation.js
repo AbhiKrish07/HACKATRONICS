@@ -746,7 +746,7 @@ function updateSimulationLoop(dt) {
     let isAvoiding = false;
     let avoidanceManeuver = '';
     
-    if (ego.isAutoPilot && closestObs && fDist < 30.0) {
+    if (closestObs && fDist < 30.0) {
         // Obstacle detected ahead in our lane
         let leftClear = true;
         let rightClear = true;
@@ -766,7 +766,7 @@ function updateSimulationLoop(dt) {
         else if (leftClear && ego.x > -3.8) laneDir = -1;
 
         if (laneDir !== 0) {
-            // Evasive Lane Change Maneuver
+            // Evasive Lane Change Maneuver (Overrides Manual Mode too!)
             isAvoiding = true;
             ego.aebActive = false;
             // Aggressiveness scales with proximity (faster lane change if closer)
@@ -777,8 +777,8 @@ function updateSimulationLoop(dt) {
             avoidanceManeuver = 'EVASIVE LANE CHANGE';
             
             AVState.setGuidance(buildGuidance(
-                `🔄 AVOIDANCE: Swerving to ${laneDir === 1 ? 'Right' : 'Left'}`,
-                `Obstacle detected at ${fDist.toFixed(1)}m. Executing automatic evasive lane change to maintain safety radius.`,
+                `🔄 ACTIVE SAFETY: Swerving to ${laneDir === 1 ? 'Right' : 'Left'}`,
+                `Obstacle detected at ${fDist.toFixed(1)}m. Automatic evasive steering engaged to maintain 150m safety radius.`,
                 fDist < 15 ? 'HIGH' : 'MEDIUM',
                 0.95
             ));
@@ -793,7 +793,7 @@ function updateSimulationLoop(dt) {
             
             AVState.setGuidance(buildGuidance(
                 `🚨 CRITICAL AEB: Lanes Blocked`,
-                `Obstacle at ${fDist.toFixed(1)}m in critical zone. Adjacent lanes blocked. Emergency braking applied to prevent crash.`,
+                `Obstacle at ${fDist.toFixed(1)}m. Emergency braking applied to prevent crash.`,
                 'CRITICAL',
                 0.99
             ));
@@ -846,7 +846,7 @@ function updateSimulationLoop(dt) {
         ego.yaw = recoverDir * -0.02;
     }
 
-    if (!ego.isAutoPilot) {
+    if (!isAvoiding && !ego.isAutoPilot) {
         // Manual mode, no immediate threat — provide advisory
         const nearestLabel = closestAnyDir
             ? `${closestAnyDir.type.toUpperCase()} (${closestAnyDist.toFixed(0)}m)`
