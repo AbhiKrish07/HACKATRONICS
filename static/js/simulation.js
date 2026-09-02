@@ -1155,66 +1155,68 @@ function spawnTrafficElement(type) {
 
     switch (type) {
         case 'signal': {
-            // Place traffic signal 35m ahead
-            const sig = new TrafficSignal(ego.worldZ + 35.0, 0.0);
+            // Place traffic signal 120m ahead (approx 4 seconds of driving)
+            const sig = new TrafficSignal(ego.worldZ + 120.0, 0.0);
             sig.setState('red'); // start red for drama
             trafficSignals.push(sig);
             AVState.setGuidance({
-                action: '🚦 STOP: Red Signal ahead at 35m',
+                action: '🚦 STOP: Red Signal ahead at 120m',
                 reason: 'Traffic signal detected in path. AEB ready. Decelerating to halt.',
                 riskLevel: 'HIGH', confidence: 0.99
             });
-            showSpawnToast('🚦 Traffic Signal Spawned — RED');
+            showSpawnToast('🚦 Traffic Signal Spawned — 120m ahead');
             break;
         }
         case 'pedestrians': {
-            // Spawn 4 pedestrians crossing 28m ahead at random x positions
-            const crossZ = 28.0;
+            // Spawn 4 pedestrians crossing 100m ahead at random x positions
+            const crossZ = 100.0;
             for (let i = 0; i < 4; i++) {
                 const px = -7.0 + i * 4.5;
                 spawnEntity('pedestrian', crossZ + (Math.random() - 0.5) * 4, px, 2.0 + Math.random());
             }
-            showSpawnToast('🚶 Pedestrian Crossing — 4 VRUs spawned');
+            showSpawnToast('🚶 Pedestrians Crossing 100m ahead');
             break;
         }
         case 'cyclists': {
-            spawnEntity('cyclist', 22.0, 4.5, 9.0);
-            spawnEntity('cyclist', 35.0, 5.2, 8.0);
-            spawnEntity('cyclist', 15.0, -4.5, 7.0);
-            showSpawnToast('🚴 3 Cyclists spawned in traffic');
+            spawnEntity('cyclist', 102.0, 4.5, 9.0);
+            spawnEntity('cyclist', 115.0, 5.2, 8.0);
+            spawnEntity('cyclist',  95.0, -4.5, 7.0);
+            showSpawnToast('🚴 3 Cyclists spawned ahead');
             break;
         }
         case 'autorickshaw': {
             // Auto-rickshaw = uses vehicle mesh, distinct lane behavior
-            spawnEntity('vehicle', 18.0,  2.0, 25.0);  // slow auto ahead
-            spawnEntity('vehicle', 12.0, -2.5, 22.0);  // auto left
-            showSpawnToast('🛺 2 Auto-Rickshaws spawned');
+            spawnEntity('vehicle', 98.0,  2.0, 25.0);  // slow auto ahead
+            spawnEntity('vehicle', 92.0, -2.5, 22.0);  // auto left
+            showSpawnToast('🛺 2 Auto-Rickshaws spawned ahead');
             break;
         }
         case 'bus': {
-            spawnEntity('truck', 25.0, 0.0, 18.0);  // bus (uses truck mesh — long)
-            showSpawnToast('🚌 Bus spawned ahead — lane blocked');
+            spawnEntity('truck', 105.0, 0.0, 18.0);  // bus (uses truck mesh — long)
+            showSpawnToast('🚌 Slow Bus spawned 100m ahead');
             break;
         }
         case 'motorcycle_swarm': {
-            spawnEntity('motorcycle', 12.0,  1.5, 52.0);
-            spawnEntity('motorcycle', 18.0, -1.5, 58.0);
-            spawnEntity('motorcycle', 10.0,  3.8, 48.0);
-            spawnEntity('motorcycle',  8.0, -3.8, 55.0);
-            showSpawnToast('🏍️ Motorcycle swarm — 4 bikes');
+            const baseDist = 80.0;
+            spawnEntity('motorcycle', baseDist + 12.0,  1.5, 52.0);
+            spawnEntity('motorcycle', baseDist + 18.0, -1.5, 58.0);
+            spawnEntity('motorcycle', baseDist + 10.0,  3.8, 48.0);
+            spawnEntity('motorcycle', baseDist +  8.0, -3.8, 55.0);
+            showSpawnToast('🏍️ Motorcycle swarm approaching');
             break;
         }
         case 'dense_indian': {
-            // Recreate dense Indian traffic
-            spawnEntity('vehicle',    18.0,  0.0, 42.0);
-            spawnEntity('motorcycle', 10.0,  2.0, 55.0);
-            spawnEntity('motorcycle',  8.0, -2.0, 48.0);
-            spawnEntity('vehicle',    28.0, -3.8, 40.0);
-            spawnEntity('cyclist',    22.0,  5.0,  8.0);
-            spawnEntity('pedestrian', 20.0, -6.0,  2.0);
-            spawnEntity('vehicle',   -15.0,  0.0, 50.0);  // behind
-            spawnEntity('motorcycle',-10.0,  3.8, 52.0);  // overtaking from behind
-            showSpawnToast('🇮🇳 Dense Indian Traffic — 8 agents');
+            // Recreate dense Indian traffic - spawns ~100m ahead to allow cruise approach
+            const baseDist = 100.0;
+            spawnEntity('vehicle',    baseDist + 18.0,  0.0, 42.0);
+            spawnEntity('motorcycle', baseDist + 10.0,  2.0, 55.0);
+            spawnEntity('motorcycle', baseDist +  8.0, -2.0, 48.0);
+            spawnEntity('vehicle',    baseDist + 28.0, -3.8, 40.0);
+            spawnEntity('cyclist',    baseDist + 22.0,  5.0,  8.0);
+            spawnEntity('pedestrian', baseDist + 20.0, -6.0,  2.0);
+            spawnEntity('vehicle',    -20.0,            0.0, 55.0);  // behind overtaking
+            spawnEntity('motorcycle', -10.0,            3.8, 58.0);  // fast bike behind
+            showSpawnToast('🇮🇳 Dense Indian Traffic approaching in 4s');
             break;
         }
         case 'green_signal': {
