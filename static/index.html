@@ -13,19 +13,22 @@
     <style>
         /* ── Decision Panel ────────────────────────────── */
         .decision-live-panel {
-            width: 280px;
-            min-width: 260px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            overflow-y: auto;
-            padding-right: 2px;
+            grid-column: 1 / -1; /* Spans full width across bottom */
+            width: auto;
+            min-width: 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+            padding-right: 4px;
+            padding-bottom: 20px; /* space for scrolling */
         }
         .dec-card {
             background: var(--bg-cockpit, #0d0f14);
             border: 1px solid var(--border-subtle, #1e2332);
             border-radius: 10px;
             padding: 12px;
+            display: flex;
+            flex-direction: column;
         }
         .dec-card-header {
             font-size: 0.62rem;
@@ -80,6 +83,7 @@
             color: var(--text-dim, #94a3b8);
             line-height: 1.5;
             margin-bottom: 8px;
+            flex-grow: 1;
         }
         .dec-evidence-label {
             font-size: 0.58rem;
@@ -100,7 +104,10 @@
             border-radius: 20px;
             letter-spacing: 0.06em;
         }
-        .dec-hazard-list { display: flex; flex-direction: column; gap: 5px; }
+        .dec-hazard-list { display: flex; flex-direction: column; gap: 5px; overflow-y: auto; max-height: 200px; padding-right: 4px; }
+        .dec-hazard-list::-webkit-scrollbar { width: 4px; }
+        .dec-hazard-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+        
         .dec-hazard-row {
             display: flex;
             align-items: center;
@@ -148,7 +155,6 @@
             color: rgba(255,255,255,0.7);
             letter-spacing: 0.1em;
             z-index: 2;
-            pointer-events: none;
         }
         .cam-main-badge {
             position: absolute;
@@ -216,13 +222,17 @@
         .map-hud-label { color: rgba(255,255,255,0.4); }
         .map-hud-val { color: #fff; font-family: monospace; font-weight: 600; }
 
-        /* Dashboard layout override - 3 columns when decision panel shown */
+        /* Dashboard layout override - Decision Panel moved below */
+        /* Dashboard layout override - Decision Panel moved below */
         .dashboard-split-layout {
             display: grid;
-            grid-template-columns: 1fr 240px 280px;
-            gap: 10px;
+            grid-template-columns: 1fr 240px;
+            grid-template-rows: minmax(400px, 1fr) auto;
+            gap: 12px;
             height: 100%;
             min-height: 0;
+            overflow-y: auto;
+            padding-right: 4px;
         }
     </style>
 </head>
