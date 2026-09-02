@@ -803,18 +803,18 @@ function updateSimulationLoop(dt) {
                 fDist < 15 ? 'HIGH' : 'MEDIUM',
                 0.95
             ));
-        } else if (fDist < 15.0) {
+        } else if (fDist < 15.0 || closestAnyDist < 6.0) {
             // Trapped! Cannot change lanes and obstacle is in the Red Critical Zone.
             // Execute Emergency Braking (AEB)
             isAvoiding = true;
             ego.aebActive = true;
-            ego.speedMph = Math.max(0, ego.speedMph - 120.0 * dt); // Hard brake
+            ego.speedMph = Math.max(0, ego.speedMph - 180.0 * dt); // Hard brake
             ego.speedMps = (ego.speedMph * 1.609) / 3.6;
-            avoidanceManeuver = 'AEB TRIGGERED (LANES BLOCKED)';
+            avoidanceManeuver = 'AEB TRIGGERED (CRITICAL PROXIMITY)';
             
             AVState.setGuidance(buildGuidance(
-                `🚨 CRITICAL AEB: Lanes Blocked`,
-                `Obstacle at ${fDist.toFixed(1)}m. Emergency braking applied to prevent crash.`,
+                `🚨 CRITICAL AEB: Proximity Alert`,
+                `Obstacle at ${closestAnyDist.toFixed(1)}m. Emergency braking applied to prevent imminent crash.`,
                 'CRITICAL',
                 0.99
             ));
