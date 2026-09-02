@@ -109,51 +109,104 @@
             </div>
 
             <!-- ============================================================
-                 01 DASHBOARD VIEW (CENTERPIECE 3D COCKPIT)
+                 01 DASHBOARD VIEW (CENTERPIECE 3D COCKPIT + RIGHT PANEL)
                  ============================================================ -->
             <section id="dashboard" class="view-pane active" data-pane="dashboard">
-                <div class="viewport-3d-container">
-                    <!-- Three.js 3D Driving Scene Container -->
-                    <div id="viewport-box-sim"></div>
+                <div class="dashboard-split-layout">
+                    <!-- Left: Main 3D Driving Scene (Centerpiece) -->
+                    <div class="viewport-3d-main">
+                        <div id="viewport-box-sim"></div>
 
-                    <!-- 360° Spatial Sensor Arc Overlay -->
-                    <div class="sensor-spatial-overlay">
-                        <div class="spatial-ego-car"></div>
-                        <div class="sensor-arc-zone zone-front zone-active-nominal" id="zone-front">FRONT 250m</div>
-                        <div class="sensor-arc-zone zone-rear zone-active-nominal" id="zone-rear">REAR 100m</div>
-                        <div class="sensor-arc-zone zone-left zone-active-nominal" id="zone-left">LEFT 40m</div>
-                        <div class="sensor-arc-zone zone-right zone-active-nominal" id="zone-right">RIGHT 40m</div>
+                        <!-- Tesla Style Speedometer HUD Overlay -->
+                        <div class="tesla-hud-overlay">
+                            <div class="tesla-speed-circle">
+                                <span class="tesla-speed-circle-max">MAX</span>
+                                <span class="tesla-speed-circle-val">55</span>
+                            </div>
+                            <div class="tesla-big-speed">
+                                <span class="tesla-big-speed-num" id="hud-speed-val">49</span>
+                                <span class="tesla-big-speed-unit">MPH</span>
+                            </div>
+                            <div class="tesla-autopilot-wheel" id="tesla-wheel-icon" title="Autopilot Steering Active">
+                                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8 0-1.84.63-3.53 1.69-4.88l3.19 3.19C8.31 10.87 8 11.4 8 12c0 2.21 1.79 4 4 4s4-1.79 4-4c0-.6-.31-1.13-.88-1.69l3.19-3.19C19.37 8.47 20 10.16 20 12c0 4.41-3.59 8-8 8z"/></svg>
+                            </div>
+                            <div class="tesla-speed-limit-sign">
+                                <span class="tesla-limit-lbl">SPEED<br>LIMIT</span>
+                                <span class="tesla-limit-val">65</span>
+                            </div>
+                        </div>
+
+                        <!-- Floating Cockpit Guidance Decision HUD -->
+                        <div class="hud-decision-overlay">
+                            <div class="hud-decision-header">
+                                <span class="hud-action-title" id="hud-action-title">MAINTAIN CRUISE</span>
+                                <span class="hud-confidence-pill" id="hud-conf-pill">94% CONF</span>
+                            </div>
+                            <div class="hud-hazard-row" id="hud-hazard-row">
+                                <span>🚗</span>
+                                <span id="hud-hazard-id">VEHICLE_01</span>
+                                <span style="color:var(--text-subtle);">·</span>
+                                <span style="font-family:var(--font-mono); color:var(--purple-accent);" id="hud-hazard-dist">28.5m</span>
+                            </div>
+                            <div class="hud-reason-text" id="hud-reason-text">
+                                Path clear ahead. MPC maintaining centerline trajectory.
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- Floating Speedometer HUD -->
-                    <div class="hud-speedometer">
-                        <div style="display:flex; align-items:baseline; gap:8px;">
-                            <span class="speed-val-huge" id="hud-speed-val">52</span>
-                            <span class="speed-unit-sub">KM/H</span>
+                    <!-- Right Side Panel: 2D Radar + Small Cameras + 360° Sensors -->
+                    <aside class="dashboard-right-panel">
+                        <!-- 1. 2D Top-Down Distance Radar Canvas -->
+                        <div class="panel-section-card">
+                            <div class="panel-section-title">
+                                <span>📡 2D SURROUND RADAR</span>
+                                <span style="font-family:var(--font-mono); font-size:0.6rem; color:var(--safety-green);">10HZ LIVE</span>
+                            </div>
+                            <div style="height:170px; background:#04060a; border-radius:6px; overflow:hidden;">
+                                <canvas id="radarCanvas" width="290" height="170" style="width:100%; height:100%; display:block;"></canvas>
+                            </div>
                         </div>
-                        <div class="speed-meta-row">
-                            <span>TARGET: <b style="color:#fff;" id="hud-target-speed">70 KM/H</b></span>
-                            <span>LIMIT: <b style="color:#fff;">80 KM/H</b></span>
-                            <span>GEAR: <b style="color:var(--safety-green);">D</b></span>
-                        </div>
-                    </div>
 
-                    <!-- Floating Cockpit Guidance Decision HUD -->
-                    <div class="hud-decision-overlay">
-                        <div class="hud-decision-header">
-                            <span class="hud-action-title" id="hud-action-title">MAINTAIN CRUISE</span>
-                            <span class="hud-confidence-pill" id="hud-conf-pill">94% CONF</span>
+                        <!-- 2. Small Multi-Camera Vision Feeds -->
+                        <div class="panel-section-card">
+                            <div class="panel-section-title">
+                                <span>📷 VISION CAMERA FEEDS</span>
+                                <span style="font-family:var(--font-mono); font-size:0.6rem; color:var(--text-subtle);">4 CHANNELS</span>
+                            </div>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+                                <div>
+                                    <div style="font-size:0.58rem; color:var(--text-subtle); margin-bottom:2px;">FRONT</div>
+                                    <canvas id="camCanvasFront" width="140" height="75" style="width:100%; height:65px; object-fit:cover; border-radius:4px; background:#000;"></canvas>
+                                </div>
+                                <div>
+                                    <div style="font-size:0.58rem; color:var(--text-subtle); margin-bottom:2px;">REAR</div>
+                                    <canvas id="camCanvasRear" width="140" height="75" style="width:100%; height:65px; object-fit:cover; border-radius:4px; background:#000;"></canvas>
+                                </div>
+                                <div>
+                                    <div style="font-size:0.58rem; color:var(--text-subtle); margin-bottom:2px;">LEFT</div>
+                                    <canvas id="camCanvasLeft" width="140" height="75" style="width:100%; height:65px; object-fit:cover; border-radius:4px; background:#000;"></canvas>
+                                </div>
+                                <div>
+                                    <div style="font-size:0.58rem; color:var(--text-subtle); margin-bottom:2px;">RIGHT</div>
+                                    <canvas id="camCanvasRight" width="140" height="75" style="width:100%; height:65px; object-fit:cover; border-radius:4px; background:#000;"></canvas>
+                                </div>
+                            </div>
                         </div>
-                        <div class="hud-hazard-row" id="hud-hazard-row">
-                            <span>🚗</span>
-                            <span id="hud-hazard-id">VEHICLE_01</span>
-                            <span style="color:var(--text-subtle);">·</span>
-                            <span style="font-family:var(--font-mono); color:var(--purple-accent);" id="hud-hazard-dist">28.5m</span>
+
+                        <!-- 3. 360° Spatial Sensor Arc Overlay -->
+                        <div class="panel-section-card">
+                            <div class="panel-section-title">
+                                <span>📡 360° SENSOR PROXIMITY</span>
+                            </div>
+                            <div style="height:140px; position:relative; background:#080808; border-radius:6px; border:1px solid var(--border-subtle); display:flex; align-items:center; justify-content:center;">
+                                <div class="spatial-ego-car"></div>
+                                <div class="sensor-arc-zone zone-front zone-active-nominal" id="zone-front">FRONT 250m</div>
+                                <div class="sensor-arc-zone zone-rear zone-active-nominal" id="zone-rear">REAR 100m</div>
+                                <div class="sensor-arc-zone zone-left zone-active-nominal" id="zone-left">LEFT 40m</div>
+                                <div class="sensor-arc-zone zone-right zone-active-nominal" id="zone-right">RIGHT 40m</div>
+                            </div>
                         </div>
-                        <div class="hud-reason-text" id="hud-reason-text">
-                            Path clear ahead. MPC maintaining centerline trajectory. Side radar monitoring adjacent lanes.
-                        </div>
-                    </div>
+                    </aside>
                 </div>
             </section>
 

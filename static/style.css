@@ -304,12 +304,19 @@ body, html {
     flex-direction: column;
 }
 
-/* 3D Viewport Screen - Dashboard */
-.viewport-3d-container {
-    position: relative;
+/* Dashboard Split Grid (3D Viewport + Right Side Panel) */
+.dashboard-split-layout {
+    display: flex;
     width: 100%;
     height: 100%;
+    background: #000;
+    overflow: hidden;
+}
+
+.viewport-3d-main {
     flex: 1;
+    position: relative;
+    height: 100%;
     background: #000;
     overflow: hidden;
 }
@@ -322,24 +329,91 @@ body, html {
     left: 0;
 }
 
-/* Floating Glass Cockpit HUD Overlays */
-.hud-speedometer {
-    position: absolute;
-    bottom: 28px;
-    left: 28px;
-    z-index: 30;
-    background: rgba(12, 12, 12, 0.85);
+/* Right Side Panel for Dashboard */
+.dashboard-right-panel {
+    width: 320px;
+    background: var(--bg-cockpit);
+    border-left: 1px solid var(--border-subtle);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px;
+    overflow-y: auto;
+    flex-shrink: 0;
+    z-index: 40;
+}
+
+.panel-section-card {
+    background: var(--surface-card);
     border: 1px solid var(--border-subtle);
-    padding: 16px 24px;
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.panel-section-title {
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    color: var(--text-main);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Tesla-Style Speedometer HUD */
+.tesla-hud-overlay {
+    position: absolute;
+    top: 24px;
+    left: 24px;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: rgba(8, 8, 8, 0.75);
+    border: 1px solid var(--border-subtle);
+    padding: 12px 20px;
     border-radius: 12px;
     backdrop-filter: blur(16px);
+}
+
+.tesla-speed-circle {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 3px solid #1e88e5;
+    background: rgba(30, 136, 229, 0.15);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-family: var(--font-mono);
+}
+
+.tesla-speed-circle-max {
+    font-size: 0.5rem;
+    font-weight: 800;
+    line-height: 1;
+    opacity: 0.8;
+}
+
+.tesla-speed-circle-val {
+    font-size: 0.95rem;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.tesla-big-speed {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
 }
 
-.speed-val-huge {
-    font-size: 3.2rem;
+.tesla-big-speed-num {
+    font-size: 2.8rem;
     font-weight: 900;
     line-height: 1;
     letter-spacing: -1px;
@@ -347,35 +421,68 @@ body, html {
     font-family: var(--font-mono);
 }
 
-.speed-unit-sub {
-    font-size: 0.75rem;
+.tesla-big-speed-unit {
+    font-size: 0.7rem;
     font-weight: 700;
-    color: var(--text-dim);
-    letter-spacing: 1px;
-    margin-top: 2px;
-}
-
-.speed-meta-row {
-    display: flex;
-    gap: 14px;
-    margin-top: 10px;
-    padding-top: 8px;
-    border-top: 1px solid var(--border-subtle);
-    font-size: 0.68rem;
     color: var(--text-subtle);
-    font-family: var(--font-mono);
+    letter-spacing: 1px;
 }
 
-/* Floating Decision Guidance HUD */
+.tesla-autopilot-wheel {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #0288d1;
+    box-shadow: 0 0 14px rgba(2, 136, 209, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+}
+
+.tesla-autopilot-wheel svg {
+    width: 22px;
+    height: 22px;
+    fill: currentColor;
+}
+
+.tesla-speed-limit-sign {
+    width: 40px;
+    height: 48px;
+    background: #ffffff;
+    border: 2px solid #000;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+
+.tesla-limit-lbl {
+    font-size: 0.45rem;
+    font-weight: 900;
+    color: #111;
+    line-height: 1;
+}
+
+.tesla-limit-val {
+    font-size: 0.9rem;
+    font-weight: 900;
+    color: #111;
+    line-height: 1;
+}
+
+/* Floating Cockpit Guidance Decision HUD */
 .hud-decision-overlay {
     position: absolute;
-    bottom: 28px;
-    right: 28px;
-    width: 340px;
+    bottom: 24px;
+    left: 24px;
+    width: 320px;
     z-index: 30;
     background: rgba(12, 12, 12, 0.88);
     border: 1px solid var(--border-subtle);
-    padding: 18px 20px;
+    padding: 14px 18px;
     border-radius: 12px;
     backdrop-filter: blur(16px);
 }

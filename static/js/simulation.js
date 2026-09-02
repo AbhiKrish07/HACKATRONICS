@@ -591,86 +591,75 @@ function updateSimulationLoop(dt) {
 
         AVState.setGuidance(buildGuidance(
             `🚨 CRITICAL BRAKE: ${typIcon} ${typ.toUpperCase()} AT ${dist}m [${dirWarn}]`,
-            `TTC ${ttcVal}s < 1.8s safety limit. AEB engaged. 360° radar detected ${typ} in ${dir} zone at ${dist}m. Hard braking applied. All drive modes protected.`,
-            'CRITICAL',
-            0.97
-        ));
-    } else if (ego.isAutoPilot && !isPhysicalImpact) {
-        // ── AUTOPILOT GUIDANCE (non-AEB scenarios) ──
-        const ttc = closestObs
-            ? (fDist / Math.max(0.1, (ego.speedMps - (closestObs.speedMph * 1.609 / 3.6))))
-            : 999;
-
-        if (closestObs && fDist < 35.0 && ego.speedMph > closestObs.speedMph + 2.0) {
-            // Check side clearance for AI-directed overtake
+    // 2. Realistic Safety & Cruising Logic (No Phantom Braking)
+    if (ego.isAutoPilot) {
+        if (closestObs && fDist < 8.0) {
+            // Imminent Danger (< 8m) — Execute 360° AEB Hard Stop
+            ego.aebActive = true;
+            ego.speedMph = Math.max(0.0, ego.speedMph - 50.0 * dt);
+            ego.speedMps = (ego.speedMph * 1.609) / 3.6;
+            AVState.setGuidance(buildGuidance(
+                '🚨 AEB HARD STOP: OBSTACLE < 8m',
+                `Critical emergency brake check. ${closestObs.type.toUpperCase()} at ${fDist.toFixed(1)}m. Hard braking active.`,
+                'CRITICAL',
+                0.99
+            ));
+        } else if (closestObs && fDist < 15.0) {
+            // Lead vehicle ahead (< 15m) — Execute Safe Overtake or Smooth Speed Match
             let leftClear = true, rightClear = true;
             for (const [id, e] of AVState.worldEntities.entries()) {
-                const d = e.getDistanceToEgo();
-                if (d > -10 && d < 35) {
-                    if (e.posX < ego.x - 1.5 && e.posX > ego.x - 5.5) leftClear = false;
-                    if (e.posX > ego.x + 1.5 && e.posX < ego.x + 5.5) rightClear = false;
+                const ed = e.getDistanceToEgo();
+                if (ed > -10 && ed < 25) {
+                    if (e.posX < ego.x - 1.5) leftClear = false;
+                    if (e.posX > ego.x + 1.5) rightClear = false;
                 }
             }
 
             let laneDir = 0;
-            if (leftClear && ego.x > -3.8)  laneDir = -1;
+            if (leftClear && ego.x > -3.8) laneDir = -1;
             else if (rightClear && ego.x < 3.8) laneDir = 1;
 
             if (laneDir !== 0) {
+                // Execute Smooth Overtake Pass
                 ego.aebActive = false;
-                ego.x += laneDir * 3.8 * dt;
+                ego.x += laneDir * 3.5 * dt;
                 ego.x = Math.max(-5.5, Math.min(5.5, ego.x));
-                ego.yaw = laneDir * -0.07;
-                const side = laneDir < 0 ? '◀ LEFT LANE' : '▶ RIGHT LANE';
+                ego.yaw = laneDir * -0.06;
                 AVState.setGuidance(buildGuidance(
-                    `🔵 EXECUTING SAFE OVERTAKE ${side}`,
-                    `Passing slower ${closestObs.type} (${closestObs.speedMph.toFixed(0)} mph) at ${fDist.toFixed(0)}m. ${side.includes('LEFT') ? 'Right' : 'Left'} lane clear. Lateral maneuver initiated safely within road envelope.`,
+                    `🔵 EXECUTING SAFE OVERTAKE`,
+                    `Passing slower ${closestObs.type} at ${fDist.toFixed(0)}m. Lane change initiated smoothly.`,
                     'MEDIUM',
                     0.92
                 ));
             } else {
-                // Both lanes blocked — match lead speed
+                // Match lead vehicle speed with comfortable distance
                 ego.aebActive = false;
-                ego.speedMph = Math.max(closestObs.speedMph, ego.speedMph - 18.0 * dt);
+                ego.speedMph = Math.max(closestObs.speedMph, ego.speedMph - 10.0 * dt);
                 ego.speedMps = (ego.speedMph * 1.609) / 3.6;
                 AVState.setGuidance(buildGuidance(
-                    `🟡 TACC: MATCHING LEAD SPEED · ${closestObs.speedMph.toFixed(0)} MPH`,
-                    `Path blocked by ${closestObs.type} at ${fDist.toFixed(0)}m. Both adjacent lanes occupied. Maintaining RSS-compliant following buffer. TTC ${ttc.toFixed(1)}s.`,
+                    `🟡 TACC: MATCHING SPEED AT ${closestObs.speedMph.toFixed(0)} KM/H`,
+                    `Following ${closestObs.type} at ${fDist.toFixed(0)}m. Maintaining safe headway clearance.`,
                     'MEDIUM',
                     0.89
                 ));
             }
-        } else if (closestObs && ttc < 4.0) {
-            // Moderate hazard — decelerate gently
-            ego.aebActive = false;
-            ego.speedMph = Math.max(ego.speedMph - 12.0 * dt, closestObs.speedMph + 2.0);
-            ego.speedMps = (ego.speedMph * 1.609) / 3.6;
-            AVState.setGuidance(buildGuidance(
-                `🟠 CAUTION: ${closestObs.type.toUpperCase()} ${fDist.toFixed(0)}m AHEAD — SLOWING`,
-                `TTC ${ttc.toFixed(1)}s approaching threshold. Reducing speed proactively. Front radar tracking ${closestObs.type} at ${closestObs.speedMph.toFixed(0)} mph. Safe deceleration applied.`,
-                'HIGH',
-                0.91
-            ));
         } else {
-            // Path Clear — resume cruise
+            // Path Clear (>= 15m) — Smooth Cruise Control (60–80 km/h)
             ego.aebActive = false;
             if (ego.speedMph < ego.targetCruiseMph) {
-                ego.speedMph = Math.min(ego.targetCruiseMph, ego.speedMph + 10.0 * dt);
+                ego.speedMph = Math.min(ego.targetCruiseMph, ego.speedMph + 12.0 * dt);
                 ego.speedMps = (ego.speedMph * 1.609) / 3.6;
             }
             ego.yaw += (0 - ego.yaw) * 4.0 * dt;
 
-            const sideNote = (lDist < 15 || rDist < 15)
-                ? `Side proximity alert: L=${lDist.toFixed(0)}m R=${rDist.toFixed(0)}m.`
-                : '360° radar clear.';
             AVState.setGuidance(buildGuidance(
-                '🟢 PATH CLEAR · CRUISE CONTROL ACTIVE',
-                `Forward cone ${fDist > 200 ? '>200' : fDist.toFixed(0)}m clear. ${sideNote} Tracking lane centerline at ${ego.speedMph.toFixed(0)} mph. All systems nominal.`,
+                '🟢 PATH CLEAR · CRUISE ACTIVE',
+                `Forward cone clear. Ego cruising smoothly at ${ego.speedMph.toFixed(0)} km/h. Centerline trajectory maintained.`,
                 'LOW',
                 0.96
             ));
         }
-    } else if (!ego.isAutoPilot && !aebAny && !isPhysicalImpact) {
+    } else {
         // Manual mode, no immediate threat — provide advisory
         const nearestLabel = closestAnyDir
             ? `${closestAnyDir.type} ${closestAnyDist.toFixed(0)}m ${closestAnyDir_label.toLowerCase()}`
