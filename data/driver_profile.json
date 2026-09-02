@@ -1,0 +1,10 @@
+{
+  "ref_speed_mph": 43.95603528108331,
+  "following_gap_s": 2.423823437386505,
+  "comfort": 0.89,
+  "overtake_bias": 0.9,
+  "brake_aggression": 0.8000000000000003,
+  "interventions": 160,
+  "last_summary": "Default Autopilot profile: 55 mph cruise, 1.8s following gap, lane-keep only.",
+  "updated_at": 1788301128.013089
+}

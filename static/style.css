@@ -1,0 +1,1578 @@
+/* ============================================================
+   HACKATRONICS PROJECT — AV-01
+   Tesla-Inspired Autonomous Perception UI System
+   MPC Master Controller + Groq AI
+   ============================================================ */
+
+:root {
+    /* Tesla-style deep dark palette */
+    --bg: #0a0b0f;
+    --sim-bg: #0d1117;
+    --surface: #11161f;
+    --surface-card: #151b26;
+    --surface-card-hover: #1b2433;
+    --border: #252f42;
+    --border-soft: #1e2838;
+
+    /* Tesla accent colors */
+    --tesla-red: #e82127;
+    --tesla-blue: #3693ff;
+    --tesla-green: #00d66f;
+    --tesla-yellow: #ffb020;
+    --tesla-cyan: #1cd0ff;
+    --tesla-gray: #8b95a5;
+
+    /* Semantic aliases */
+    --accent: var(--tesla-blue);
+    --critical: var(--tesla-red);
+    --high: #ff6b35;
+    --medium: var(--tesla-yellow);
+    --low: var(--tesla-green);
+    --text: #f1f5f9;
+    --text-dim: #94a3b8;
+    --text-muted: #64748b;
+
+    /* Shadows & glows */
+    --glow-blue: 0 0 24px rgba(54, 147, 255, 0.35);
+    --glow-green: 0 0 24px rgba(0, 214, 111, 0.35);
+    --glow-red: 0 0 24px rgba(232, 33, 39, 0.45);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+    user-select: none;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ── Top Header (Tesla-style slim bar) ──────────────── */
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 1.4rem;
+    background: linear-gradient(180deg, rgba(13,17,23,0.98) 0%, rgba(10,11,15,0.95) 100%);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 1px solid var(--border-soft);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+.logo-box { display: flex; align-items: center; gap: 12px; }
+.logo-badge {
+    background: linear-gradient(135deg, #1a2744, #0e1830);
+    color: var(--tesla-blue);
+    font-weight: 800;
+    font-size: 0.7rem;
+    padding: 5px 10px;
+    border-radius: 6px;
+    letter-spacing: 0.8px;
+    border: 1px solid rgba(54,147,255,0.2);
+}
+.logo-box h1 {
+    font-size: 1.0rem;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    color: var(--text);
+}
+.logo-box span { color: var(--tesla-blue); }
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.badge-healthy {
+    background: rgba(0, 214, 111, 0.1);
+    color: var(--tesla-green);
+    border: 1px solid rgba(0, 214, 111, 0.25);
+}
+.badge-degraded {
+    background: rgba(255, 176, 32, 0.1);
+    color: var(--tesla-yellow);
+    border: 1px solid rgba(255,176,32,0.3);
+}
+.badge-critical {
+    background: rgba(232, 33, 39, 0.15);
+    color: var(--tesla-red);
+    border: 1px solid rgba(232,33,39,0.4);
+    animation: pulse-red 1.2s infinite;
+}
+@keyframes pulse-red {
+    0%, 100% { box-shadow: 0 0 0 rgba(232,33,39,0.4); }
+    50% { box-shadow: 0 0 20px rgba(232,33,39,0.45); }
+}
+.groq-badge {
+    background: linear-gradient(135deg, #f55036 0%, #ff7a3d 100%);
+    color: #fff;
+    border: none;
+    font-weight: 800;
+}
+
+/* ── Control Bar ───────────────────────────────────── */
+.control-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.45rem 1.4rem;
+    background: #0c1018;
+    border-bottom: 1px solid var(--border-soft);
+    font-size: 0.74rem;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.control-group { display: flex; align-items: center; gap: 6px; }
+.control-lbl {
+    color: var(--text-muted);
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+button.btn {
+    background: var(--surface-card);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 5px 10px;
+    border-radius: 7px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+button.btn:hover {
+    background: var(--surface-card-hover);
+    border-color: var(--tesla-blue);
+    transform: translateY(-0.5px);
+}
+button.btn.active {
+    background: linear-gradient(135deg, var(--tesla-blue) 0%, #1d78e8 100%);
+    border-color: var(--tesla-blue);
+    color: #fff;
+    font-weight: 700;
+    box-shadow: var(--glow-blue);
+}
+button.btn-danger {
+    background: rgba(232, 33, 39, 0.12);
+    border-color: rgba(232,33,39,0.35);
+    color: var(--tesla-red);
+}
+button.btn-danger:hover { background: var(--tesla-red); color: #fff; }
+
+/* ── Main Grid Layout ──────────────────────────────── */
+main {
+    display: grid;
+    grid-template-columns: 1.5fr 0.95fr 0.95fr;
+    gap: 0.9rem;
+    padding: 0.8rem 1.4rem 1.2rem;
+    flex: 1;
+}
+@media (max-width: 1300px) { main { grid-template-columns: 1fr; } }
+
+.card {
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    padding: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.35);
+}
+.card-title {
+    font-size: 0.74rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: var(--text-dim);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    padding-bottom: 0.4rem;
+}
+
+/* ════════════════════════════════════════════════════
+   TESLA-STYLE 3D VIEWPORT + MINIMAL HUD
+   ════════════════════════════════════════════════════ */
+.viewport-box {
+    position: relative;
+    width: 100%;
+    height: 500px;
+    background: linear-gradient(180deg, #070a10 0%, #0d1320 100%);
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border-soft);
+    box-shadow: inset 0 0 50px rgba(0,0,0,0.6);
+}
+#webgl-canvas { width: 100%; height: 100%; display: block; }
+
+/* HUD overlay — absolutely clean Tesla-style */
+.hud-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 18px 22px;
+}
+
+/* ── Top HUD Row ─────────────────────────────────── */
+.hud-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    position: relative;
+}
+/* Center Autopilot Chip (Tesla signature) */
+.autopilot-chip {
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 16px;
+    border-radius: 999px;
+    background: rgba(14, 20, 32, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(54,147,255,0.3);
+    transition: all 0.3s ease;
+}
+.autopilot-chip.active {
+    background: linear-gradient(135deg, rgba(54,147,255,0.2) 0%, rgba(54,147,255,0.08) 100%);
+    border-color: var(--tesla-blue);
+    box-shadow: var(--glow-blue);
+}
+.autopilot-chip.manual {
+    border-color: rgba(139,149,165,0.3);
+    opacity: 0.7;
+}
+.pilot-icon {
+    width: 18px; height: 18px;
+    fill: var(--tesla-blue);
+    flex-shrink: 0;
+}
+.autopilot-chip.manual .pilot-icon { fill: var(--tesla-gray); }
+.chip-text {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+.chip-text.active-text { color: var(--tesla-blue); }
+.chip-text.manual-text { color: var(--tesla-gray); }
+.mpc-badge {
+    font-size: 0.58rem;
+    background: rgba(0,214,111,0.15);
+    color: var(--tesla-green);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    border: 1px solid rgba(0,214,111,0.3);
+}
+
+/* Left HUD: Target Speed + Speed Limit */
+.hud-left-stack { display: flex; flex-direction: column; gap: 10px; }
+.hud-target-badge {
+    width: 46px; height: 46px;
+    border-radius: 50%;
+    border: 2.5px solid var(--tesla-green);
+    background: rgba(10, 16, 28, 0.9);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    box-shadow: 0 0 18px rgba(0,214,111,0.3);
+}
+.target-lbl {
+    font-size: 0.52rem; font-weight: 900;
+    color: var(--tesla-green);
+    letter-spacing: 0.5px;
+}
+.target-val {
+    font-size: 1.0rem; font-weight: 900;
+    color: #fff; line-height: 1;
+    font-family: 'JetBrains Mono', monospace;
+}
+.speed-limit-sign {
+    width: 42px;
+    background: #fff; color: #000;
+    border: 2.5px solid #000;
+    border-radius: 4px;
+    padding: 2px 2px;
+    display: flex; flex-direction: column;
+    align-items: center;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.5);
+}
+.sl-lbl { font-size: 0.44rem; font-weight: 900; line-height: 1; text-align: center; }
+.sl-val {
+    font-size: 0.88rem; font-weight: 900;
+    line-height: 1; margin-top: 1px;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Center: Tesla Massive Speed Display ─────────── */
+.hud-speed-center {
+    position: absolute;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+/* Confidence arc around speed */
+.speed-arc-container {
+    position: relative;
+    width: 180px;
+    height: 90px;
+    margin-bottom: -10px;
+}
+.speed-arc-bg {
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 160px; height: 80px;
+    border: 4px solid rgba(255,255,255,0.06);
+    border-bottom: none;
+    border-radius: 160px 160px 0 0;
+}
+.speed-arc-fill {
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 160px; height: 80px;
+    border: 4px solid transparent;
+    border-top: 4px solid var(--tesla-green);
+    border-left: 4px solid var(--tesla-green);
+    border-right: 4px solid var(--tesla-green);
+    border-bottom: none;
+    border-radius: 160px 160px 0 0;
+    clip-path: inset(0 0 0 0);
+    transition: all 0.4s ease;
+}
+.big-speed-val {
+    font-size: 4.0rem;
+    font-weight: 200;
+    color: #fff;
+    line-height: 1;
+    letter-spacing: -3px;
+    text-shadow: 0 4px 20px rgba(0,0,0,0.6);
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+}
+.speed-unit-text {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    font-weight: 600;
+    margin-top: 2px;
+    letter-spacing: 2px;
+}
+.confidence-label {
+    font-size: 0.62rem;
+    color: var(--tesla-green);
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-top: 4px;
+}
+
+/* ── Blind Spot Indicators (Front-Only Sensor Awareness) ── */
+.blind-spot-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    z-index: 5;
+}
+.bs-left, .bs-right {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.35;
+}
+.bs-left {
+    left: 0;
+    background: linear-gradient(90deg, rgba(232,33,39,0.25) 0%, transparent 100%);
+    border-right: 2px dashed rgba(232,33,39,0.3);
+}
+.bs-right {
+    right: 0;
+    background: linear-gradient(-90deg, rgba(232,33,39,0.25) 0%, transparent 100%);
+    border-left: 2px dashed rgba(232,33,39,0.3);
+}
+.bs-rear {
+    position: absolute;
+    bottom: 0; left: 70px; right: 70px;
+    height: 60px;
+    background: linear-gradient(0deg, rgba(255,176,32,0.2) 0%, transparent 100%);
+    border-top: 2px dashed rgba(255,176,32,0.35);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 10px;
+    opacity: 0.5;
+}
+.bs-text {
+    font-size: 0.58rem;
+    font-weight: 800;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--tesla-red);
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+}
+.bs-right .bs-text { transform: rotate(0deg); writing-mode: vertical-rl; }
+.bs-rear .bs-text {
+    writing-mode: horizontal-tb;
+    transform: none;
+    color: var(--tesla-yellow);
+}
+.bs-icon {
+    font-size: 1.1rem;
+    margin-bottom: 8px;
+}
+
+/* ── Sensor Coverage Banner ──────────────────────── */
+.sensor-coverage-hud {
+    position: absolute;
+    top: 12px; left: 50%;
+    transform: translateX(-50%);
+    margin-top: 50px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 10px;
+    background: rgba(255,176,32,0.08);
+    border: 1px solid rgba(255,176,32,0.2);
+    border-radius: 6px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: var(--tesla-yellow);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+.sensor-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--tesla-green);
+}
+.sensor-dot.unknown { background: var(--tesla-gray); opacity: 0.4; }
+
+/* ── Radar / Distance Readout ───────────────────── */
+.radar-range-hud {
+    position: absolute;
+    bottom: 90px; left: 50%;
+    transform: translateX(-50%);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.8px;
+    color: var(--tesla-cyan);
+    padding: 5px 14px;
+    background: rgba(28,208,255,0.06);
+    border: 1px solid rgba(28,208,255,0.18);
+    border-radius: 6px;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+/* ── Overtake Notice ─────────────────────────────── */
+.overtake-hud {
+    display: none;
+    position: absolute;
+    top: 30%; left: 50%;
+    transform: translateX(-50%);
+    padding: 10px 22px;
+    background: rgba(0,214,111,0.12);
+    border: 2px solid rgba(0,214,111,0.4);
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--tesla-green);
+    letter-spacing: 0.5px;
+    animation: fadeInUp 0.3s ease;
+}
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ── Alert / AEB Banner ──────────────────────────── */
+.alert-banner {
+    display: none;
+    position: absolute;
+    top: 25%; left: 50%;
+    transform: translateX(-50%);
+    padding: 16px 32px;
+    background: linear-gradient(135deg, rgba(232,33,39,0.25) 0%, rgba(232,33,39,0.08) 100%);
+    border: 2px solid var(--tesla-red);
+    border-radius: 10px;
+    display: flex; align-items: center; gap: 12px;
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--tesla-red);
+    letter-spacing: 0.3px;
+    box-shadow: var(--glow-red);
+    animation: aeb-pulse 0.6s infinite;
+    z-index: 50;
+}
+@keyframes aeb-pulse {
+    0%, 100% { box-shadow: var(--glow-red); }
+    50% { box-shadow: 0 0 40px rgba(232,33,39,0.7); }
+}
+.alert-banner span:first-child { font-size: 1.5rem; animation: shake 0.5s infinite; }
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-3px); }
+    75% { transform: translateX(3px); }
+}
+
+/* ── Groq AI Action Recommendation Banner ───────── */
+.action-banner {
+    position: absolute;
+    top: 14%; left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, rgba(54,147,255,0.14) 0%, rgba(10,18,34,0.98) 100%);
+    border: 1.5px solid rgba(54,147,255,0.35);
+    padding: 12px 28px;
+    border-radius: 10px;
+    text-align: center;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    z-index: 30;
+    box-shadow: 0 4px 30px rgba(0,0,0,0.5);
+    min-width: 380px;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+.action-label {
+    font-size: 0.62rem;
+    color: var(--tesla-blue);
+    font-weight: 800;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+.action-label::before {
+    content: '';
+    width: 8px; height: 8px;
+    background: linear-gradient(135deg, #f55036, #ff7a3d);
+    border-radius: 50%;
+    animation: pulse-dot 1.5s infinite;
+}
+.action-text {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.2px;
+    line-height: 1.2;
+}
+.action-reason {
+    margin-top: 6px;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    font-weight: 500;
+    line-height: 1.4;
+    max-width: 440px;
+}
+.action-confidence {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+.conf-bar {
+    width: 120px;
+    height: 4px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 999px;
+    overflow: hidden;
+}
+.conf-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--tesla-blue), var(--tesla-green));
+    border-radius: 999px;
+    transition: width 0.4s ease;
+}
+.conf-text {
+    font-size: 0.6rem;
+    font-weight: 800;
+    color: var(--tesla-green);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Bottom HUD Row ──────────────────────────────── */
+.hud-bottom-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+}
+.drive-hint-pill {
+    padding: 6px 14px;
+    background: rgba(20, 28, 44, 0.85);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(54,147,255,0.15);
+    border-radius: 999px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: var(--text-dim);
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+}
+.drive-hint-pill.pilot-active {
+    color: var(--tesla-blue);
+    border-color: rgba(54,147,255,0.35);
+    background: rgba(54,147,255,0.08);
+}
+.onscreen-pad {
+    display: flex;
+    gap: 4px;
+    pointer-events: auto;
+}
+.onscreen-pad button {
+    width: 38px; height: 38px;
+    border-radius: 10px;
+    background: rgba(20,28,44,0.85);
+    border: 1px solid var(--border);
+    color: #fff;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    backdrop-filter: blur(10px);
+}
+.onscreen-pad button:hover {
+    background: var(--tesla-blue);
+    border-color: var(--tesla-blue);
+    transform: scale(1.05);
+}
+.onscreen-pad button:active { transform: scale(0.95); }
+
+/* ── Kaggle Data Overlay ─────────────────────────── */
+.kaggle-overlay {
+    position: absolute;
+    right: 16px;
+    top: 80px;
+    width: 230px;
+    background: rgba(10,16,28,0.92);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    padding: 10px;
+    font-size: 0.68rem;
+}
+.kaggle-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.kgl-title { font-weight: 800; color: var(--text); font-size: 0.72rem; }
+.kgl-row-id { color: var(--text-muted); font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; }
+.kaggle-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.kgl-item { display: flex; flex-direction: column; gap: 1px; }
+.kgl-lbl { font-size: 0.54rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+.kgl-val { font-size: 0.72rem; font-weight: 600; color: var(--text); font-family: 'JetBrains Mono', monospace; }
+.kgl-progress { grid-column: span 2; margin-top: 4px; }
+.kgl-progress-bar {
+    height: 3px; background: rgba(255,255,255,0.06);
+    border-radius: 999px; overflow: hidden;
+}
+.kgl-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--tesla-blue), var(--tesla-cyan));
+    border-radius: 999px;
+    transition: width 0.3s ease;
+}
+.kgl-progress-text { margin-top: 3px; font-size: 0.56rem; color: var(--text-muted); }
+
+/* ── Telemetry Grid ──────────────────────────────── */
+.telemetry-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+}
+.metric-box {
+    background: var(--surface-card);
+    border: 1px solid var(--border-soft);
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+.metric-box:hover { border-color: var(--tesla-blue); background: var(--surface-card-hover); }
+.metric-lbl {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+.metric-val {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: -0.3px;
+}
+
+/* ── Hazards / Threat Matrix ─────────────────────── */
+.hazards-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 420px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+.hazards-list::-webkit-scrollbar { width: 4px; }
+.hazards-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.hazard-item {
+    background: var(--surface-card);
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 10px;
+    align-items: center;
+    transition: all 0.2s ease;
+}
+.hazard-item:hover { border-color: var(--tesla-blue); background: var(--surface-card-hover); }
+.hazard-item.critical { border-color: rgba(232,33,39,0.4); background: rgba(232,33,39,0.06); }
+.hazard-item.high { border-color: rgba(255,107,53,0.35); background: rgba(255,107,53,0.05); }
+.hazard-item.medium { border-color: rgba(255,176,32,0.3); background: rgba(255,176,32,0.04); }
+
+.hazard-icon {
+    width: 36px; height: 36px;
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem;
+    background: rgba(54,147,255,0.1);
+    flex-shrink: 0;
+}
+.hazard-item.critical .hazard-icon { background: rgba(232,33,39,0.15); }
+.hazard-item.high .hazard-icon { background: rgba(255,107,53,0.12); }
+.hazard-item.medium .hazard-icon { background: rgba(255,176,32,0.1); }
+
+.hazard-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.hazard-title {
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: var(--text);
+    display: flex; align-items: center; gap: 6px;
+}
+.hazard-meta {
+    font-size: 0.62rem;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    display: flex; gap: 8px; flex-wrap: wrap;
+}
+.in-fov-badge {
+    display: inline-flex;
+    align-items: center; gap: 3px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: rgba(0,214,111,0.12);
+    color: var(--tesla-green);
+    font-size: 0.56rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+.out-fov-badge {
+    background: rgba(139,149,165,0.12);
+    color: var(--tesla-gray);
+}
+.risk-level-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 7px;
+    border-radius: 6px;
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+}
+.risk-level-badge.critical { background: rgba(232,33,39,0.15); color: var(--tesla-red); }
+.risk-level-badge.high { background: rgba(255,107,53,0.12); color: var(--high); }
+.risk-level-badge.medium { background: rgba(255,176,32,0.12); color: var(--tesla-yellow); }
+.risk-level-badge.low { background: rgba(0,214,111,0.12); color: var(--tesla-green); }
+
+/* ── Groq AI Justifications Panel ────────────────── */
+.justifications-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 420px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+.justifications-list::-webkit-scrollbar { width: 4px; }
+.justifications-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.justification-item {
+    background: linear-gradient(135deg, rgba(54,147,255,0.06) 0%, var(--surface-card) 100%);
+    border: 1px solid rgba(54,147,255,0.15);
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.justification-item.fallback {
+    background: var(--surface-card);
+    border-color: var(--border-soft);
+    opacity: 0.75;
+}
+.just-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.ai-provider-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 0.58rem;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+}
+.ai-provider-tag.groq {
+    background: linear-gradient(135deg, rgba(245,80,54,0.15) 0%, rgba(255,122,61,0.08) 100%);
+    color: #ff7a3d;
+    border: 1px solid rgba(245,80,54,0.25);
+}
+.ai-provider-tag.fallback {
+    background: rgba(139,149,165,0.1);
+    color: var(--tesla-gray);
+    border: 1px solid rgba(139,149,165,0.2);
+}
+.just-time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.58rem;
+    color: var(--text-muted);
+}
+.just-reasoning {
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--text);
+    font-weight: 500;
+}
+.just-evidence {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255,255,255,0.04);
+}
+.evi-pill {
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    font-size: 0.56rem;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Trip Performance + Driver Profile Panel ─────── */
+.perf-grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+}
+.perf-stat {
+    background: var(--surface-card);
+    border: 1px solid var(--border-soft);
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+}
+.perf-stat-label {
+    font-size: 0.58rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+    margin-bottom: 3px;
+}
+.perf-stat-val {
+    font-size: 1.1rem;
+    font-weight: 800;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: -0.3px;
+}
+
+/* Driver Profile Card (Learned from User) */
+.driver-profile-card {
+    background: linear-gradient(135deg, rgba(0,214,111,0.06) 0%, var(--surface-card) 100%);
+    border: 1px solid rgba(0,214,111,0.2);
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.profile-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+.profile-title {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: var(--tesla-green);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+.profile-metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+.pm-item { display: flex; flex-direction: column; gap: 2px; }
+.pm-label { font-size: 0.54rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; font-weight: 700; }
+.pm-value {
+    font-size: 0.82rem;
+    font-weight: 800;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+}
+.pm-bar {
+    height: 3px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 999px;
+    overflow: hidden;
+    margin-top: 2px;
+}
+.pm-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--tesla-green), var(--tesla-cyan));
+    transition: width 0.4s ease;
+}
+.profile-summary {
+    font-size: 0.7rem;
+    line-height: 1.5;
+    color: var(--text-dim);
+    padding: 8px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 6px;
+    font-style: italic;
+    border-left: 3px solid var(--tesla-green);
+}
+.kaggle-btn {
+    background: var(--surface-card);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.kaggle-btn:hover { background: var(--surface-card-hover); border-color: var(--tesla-blue); }
+
+.edge-case-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 4px;
+}
+.edge-btn {
+    padding: 8px 10px;
+    border-radius: 7px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    cursor: pointer;
+    border: 1px solid;
+    transition: all 0.15s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+.edge-btn.sensor-gap {
+    background: rgba(255,176,32,0.1);
+    border-color: rgba(255,176,32,0.35);
+    color: var(--tesla-yellow);
+}
+.edge-btn.sensor-gap:hover { background: rgba(255,176,32,0.2); }
+.edge-btn.conflict {
+    background: rgba(232,33,39,0.1);
+    border-color: rgba(232,33,39,0.35);
+    color: var(--tesla-red);
+}
+.edge-btn.conflict:hover { background: rgba(232,33,39,0.2); }
+
+.section-title-sub {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    margin-top: 4px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.04);
+}
+
+/* ── AUTONAV Dashboard Layout Overhaul ──────────── */
+.dash-grid-top {
+    display: grid;
+    grid-template-columns: 2.2fr 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.dash-grid-mid {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr 1.1fr;
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+/* 2D Radar Canvas Card */
+.radar-card {
+    display: flex;
+    flex-direction: column;
+}
+.radar-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #090e1a;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.05);
+    padding: 6px;
+    overflow: hidden;
+}
+#radarCanvas {
+    width: 100%;
+    height: 100%;
+    max-height: 280px;
+}
+
+/* Current Recommendation Card */
+.rec-card {
+    display: flex;
+    flex-direction: column;
+}
+.rec-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    height: 100%;
+}
+.rec-hero-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(255, 179, 0, 0.08);
+    border: 1.5px solid var(--tesla-yellow);
+    padding: 12px 14px;
+    border-radius: 10px;
+}
+.rec-icon {
+    font-size: 2.2rem;
+    line-height: 1;
+}
+.rec-action-text {
+    font-size: 1.3rem;
+    font-weight: 900;
+    color: var(--tesla-yellow);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+.rec-metrics-row {
+    display: flex;
+    gap: 12px;
+}
+.rec-m-item {
+    flex: 1;
+    background: var(--surface-card);
+    border: 1px solid var(--border-soft);
+    border-radius: 8px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.rec-m-label {
+    font-size: 0.58rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-weight: 700;
+}
+.rec-conf-val {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--tesla-green);
+    font-family: 'JetBrains Mono', monospace;
+}
+.rec-reason-box {
+    background: rgba(0,0,0,0.25);
+    border-radius: 8px;
+    padding: 10px;
+    border-left: 3px solid var(--tesla-blue);
+    flex: 1;
+}
+.rec-reason-label {
+    font-size: 0.58rem;
+    color: var(--tesla-blue);
+    font-weight: 800;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+.rec-reason-text {
+    font-size: 0.76rem;
+    color: var(--text-secondary);
+    line-height: 1.45;
+}
+.btn-logic-modal {
+    width: 100%;
+    padding: 10px;
+    background: linear-gradient(135deg, rgba(54,147,255,0.15) 0%, rgba(20,28,44,0.9) 100%);
+    border: 1px solid rgba(54,147,255,0.4);
+    color: var(--tesla-blue);
+    font-size: 0.72rem;
+    font-weight: 800;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    letter-spacing: 0.5px;
+}
+.btn-logic-modal:hover {
+    background: var(--tesla-blue);
+    color: #fff;
+    box-shadow: 0 0 16px rgba(54,147,255,0.4);
+}
+
+/* Recent Alerts Card */
+.alerts-card {
+    display: flex;
+    flex-direction: column;
+}
+.alerts-feed {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-y: auto;
+    max-height: 270px;
+}
+.alert-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--surface-card);
+    border: 1px solid var(--border-soft);
+    padding: 8px 10px;
+    border-radius: 8px;
+}
+.alert-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.alert-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+.alert-dot.green { background: var(--tesla-green); box-shadow: 0 0 8px rgba(0,214,111,0.5); }
+.alert-dot.amber { background: var(--tesla-yellow); box-shadow: 0 0 8px rgba(255,179,0,0.5); }
+.alert-dot.red { background: var(--tesla-red); box-shadow: 0 0 8px rgba(232,33,39,0.5); }
+.alert-title {
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: var(--text);
+}
+.alert-sub {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+}
+.alert-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+}
+.alert-time {
+    font-size: 0.58rem;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* Confidence Over Time Sparkline Chart */
+.chart-card {
+    display: flex;
+    flex-direction: column;
+}
+.chart-container {
+    position: relative;
+    width: 100%;
+    height: 180px;
+    padding-top: 10px;
+}
+#confidenceChartSvg {
+    width: 100%;
+    height: 140px;
+    overflow: visible;
+}
+.chart-y-axis {
+    position: absolute;
+    left: 0;
+    top: 10px;
+    bottom: 25px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    font-size: 0.54rem;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+}
+.chart-x-axis {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.58rem;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: 4px;
+    padding-left: 24px;
+}
+
+/* 4-Way Cameras Grid */
+.cams-card {
+    display: flex;
+    flex-direction: column;
+}
+.cams-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+.cam-box {
+    background: #080d18;
+    border: 1px solid var(--border-soft);
+    border-radius: 8px;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.cam-box.active {
+    border-color: var(--tesla-blue);
+    box-shadow: 0 0 10px rgba(54,147,255,0.25);
+}
+.cam-label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.cam-label {
+    font-size: 0.58rem;
+    font-weight: 800;
+    color: var(--text-dim);
+    text-transform: uppercase;
+}
+.cam-tag {
+    font-size: 0.5rem;
+    font-weight: 800;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+}
+.tag-green { background: rgba(0,214,111,0.15); color: var(--tesla-green); }
+.tag-amber { background: rgba(255,179,0,0.15); color: var(--tesla-yellow); }
+.tag-blue { background: rgba(54,147,255,0.15); color: var(--tesla-blue); }
+
+.cam-render-box {
+    height: 75px;
+    background: #040810;
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.cam-render-box canvas {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Indian Traffic USP Card */
+.usp-card {
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(135deg, rgba(245,80,54,0.06) 0%, var(--surface-card) 100%);
+    border: 1px solid rgba(245,80,54,0.25);
+}
+.usp-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.usp-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.usp-scenario-title {
+    font-size: 0.85rem;
+    font-weight: 800;
+    color: #ff7a3d;
+    letter-spacing: 0.3px;
+}
+.usp-details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: rgba(0,0,0,0.2);
+    padding: 8px;
+    border-radius: 6px;
+}
+.usp-d-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.64rem;
+}
+.usp-d-lbl { color: var(--text-muted); }
+.usp-d-val { color: var(--text); font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+.usp-reason-box {
+    font-size: 0.7rem;
+    line-height: 1.45;
+    color: var(--text-secondary);
+    padding: 8px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 6px;
+    border-left: 3px solid #ff7a3d;
+}
+
+/* Trip Summary Bottom Bar */
+.trip-summary-bar {
+    background: var(--surface-card);
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    padding: 12px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.ts-title {
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+.ts-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+}
+.ts-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(0,0,0,0.2);
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.04);
+}
+.ts-icon { font-size: 1.3rem; }
+.ts-meta { display: flex; flex-direction: column; gap: 2px; }
+.ts-lbl { font-size: 0.54rem; color: var(--text-muted); text-transform: uppercase; font-weight: 800; }
+.ts-val { font-size: 1.05rem; font-weight: 800; color: var(--text); font-family: 'JetBrains Mono', monospace; }
+
+/* Decision Logic Modal */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(4, 8, 16, 0.82);
+    backdrop-filter: blur(12px);
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+.modal-overlay.active { display: flex; }
+.modal-card {
+    background: #0d1424;
+    border: 1.5px solid rgba(54,147,255,0.35);
+    border-radius: 14px;
+    width: 620px;
+    max-width: 90vw;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.7);
+    overflow: hidden;
+}
+.modal-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 18px;
+    background: rgba(20,28,44,0.9);
+    border-bottom: 1px solid var(--border-soft);
+}
+.modal-title { font-size: 0.88rem; font-weight: 800; color: var(--text); }
+.modal-close {
+    background: none; border: none; color: var(--text-muted); font-size: 1.2rem; cursor: pointer;
+}
+.modal-close:hover { color: var(--tesla-red); }
+.modal-body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.logic-stage-card {
+    border-radius: 10px;
+    padding: 12px;
+    border: 1px solid;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.logic-stage-card.stage-1 { background: rgba(232,33,39,0.06); border-color: rgba(232,33,39,0.25); }
+.logic-stage-card.stage-2 { background: rgba(54,147,255,0.06); border-color: rgba(54,147,255,0.25); }
+.logic-stage-card.stage-3 { background: rgba(245,80,54,0.06); border-color: rgba(245,80,54,0.25); }
+.stage-tag { font-size: 0.65rem; font-weight: 800; letter-spacing: 0.5px; }
+.tag-red { color: var(--tesla-red); }
+.tag-blue { color: var(--tesla-blue); }
+.tag-orange { color: #ff7a3d; }
+.stage-desc { font-size: 0.74rem; color: var(--text-secondary); line-height: 1.5; }
+
+/* ============================================================
+   App Shell & 9-Screen Layout
+   ============================================================ */
+.app-shell {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+}
+
+.sidebar {
+    width: 240px;
+    background: var(--surface-card);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    z-index: 10;
+}
+
+.brand {
+    padding: 24px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--border-soft);
+}
+.brand-mark {
+    font-size: 1.2rem;
+    font-weight: 900;
+    color: #fff;
+    background: linear-gradient(135deg, var(--tesla-blue), var(--tesla-cyan));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.brand-text {
+    display: flex;
+    flex-direction: column;
+}
+.brand-title { font-weight: 800; font-size: 0.95rem; letter-spacing: 0.5px; }
+.brand-sub { font-size: 0.55rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; margin-top: 2px; }
+
+.nav-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-dim);
+    padding: 12px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+.nav-item svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+    flex-shrink: 0;
+}
+.nav-item:hover {
+    background: rgba(255,255,255,0.03);
+    color: var(--text);
+}
+.nav-item.active {
+    background: rgba(54,147,255,0.1);
+    border-color: rgba(54,147,255,0.3);
+    color: var(--tesla-blue);
+    box-shadow: 0 0 12px rgba(54,147,255,0.1);
+}
+
+.sidebar-footer {
+    padding: 20px;
+    border-top: 1px solid var(--border-soft);
+}
+
+.main-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow-y: auto;
+}
+
+.view-pane {
+    display: flex;
+    flex-direction: column;
+    padding: 16px 24px 32px 24px;
+    background: var(--bg);
+    width: 100%;
+}
